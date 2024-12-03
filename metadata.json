@@ -1,0 +1,23 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Alessandro Abbenante"
+            }
+        ],
+        "Name": "AirPods Battery Widget Fronted",
+        "Id": "airpods.battery.widget.frontend",
+        "Description": "This is an AirPods battery widget frontend for the Airstatus Python script, designed to display the AirPods' battery levels.",
+        "Category": "Utilities",
+        "Icon": "headphone",
+        "EnabledByDefault": true,
+        "License": "GPLv3",
+        "ServiceTypes": [
+            "Plasma/Applet"
+        ],
+        "Version": "1",
+        "Website": "https://github.com/Alessandros-Hube/airpods.battery.widget.frontend"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-MainScript": "ui/main.qml"
+}

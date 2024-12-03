@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg>
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="widgetScript" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="otherScript" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="outPutFile" type="string">
+      <default></default>
+    </entry>
+    <entry name="optimizerOptions" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="refRawValue" type="string">
+      <default></default>
+    </entry>
+  </group>
+  <group name="Behavior">
+    <entry name="hiddenWidgetBt" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="hiddenWidgetLastUpdate" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="customTimeThreshold" type="Int">
+      <default>4</default>
+    </entry>
+    <entry name="averageView" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="detailedView" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="showCaseBattery" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="doNotShowCaseBattery" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showAlwaysCaseBatteryFullRep" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="showAvailableCaseBatteryFullRep" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="doNotShowCaseBatteryFullRep" type="Bool">
+      <default>fasle</default>
+    </entry>
+  </group>
+  <group name="Appearance">
+    <entry name="percentTextCompRepCheck" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="boldCompRep" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="italicCompRep" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="fontSizeCompRep" type="Int">
+      <default>16</default>
+    </entry>
+    <entry name="colorCompRep" type="string">
+      <default>white</default>
+    </entry>
+    <entry name="diffColorCompRepCheck" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="diffColorCompRep" type="string">
+      <default>tomato</default>
+    </entry>
+    <entry name="titleCheck" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="titleCheckText" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="titleText" type="string">
+      <default>AirPods Pro</default>
+    </entry>
+    <entry name="boldFullRepTitle" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="italicFullRepTitle" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="fontSizeFullRepTitle" type="Int">
+      <default>18</default>
+    </entry>
+    <entry name="colorFullRepTitle" type="string">
+      <default>white</default>
+    </entry>
+    <entry name="percentageCircleCheck" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="colorFullRepCircleO" type="string">
+      <default>green</default>
+    </entry>
+    <entry name="colorFullRepCircleU" type="string">
+      <default>tomato</default>
+    </entry>
+    <entry name="circleWidth" type="Int">
+      <default>5</default>
+    </entry>
+    <entry name="circleSize" type="Int">
+      <default>84</default>
+    </entry>
+    <entry name="percentTextFullRepCheck" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="diffColorCompFullCheck" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="diffColorCompFull" type="string">
+      <default>tomato</default>
+    </entry>
+    <entry name="boldFullRepPC" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="italicFullRepPC" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="fontSizeFullRepPC" type="Int">
+      <default>12</default>
+    </entry>
+    <entry name="colorFullRepPC" type="string">
+      <default>white</default>
+    </entry> 
+    <entry name="lastUpdateTextCheck" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="boldFullRepLU" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="italicFullRepLU" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="fontSizeFullRepLU" type="Int">
+      <default>12</default>
+    </entry>
+    <entry name="colorFullRepLU" type="string">
+      <default>white</default>
+    </entry>
+  </group>
+  <group name="Icons">
+    <entry name="autoWidgetIcons" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="comboBoxSettingsDefaultIconSelect" type="Int">
+      <default>4</default>
+    </entry>
+    <entry name="comboBoxDefaultIconSelect" type="string">
+      <default>AirPodsPro1&amp;2Icons</default>
+    </entry>
+    <entry name="iconSelectIndex" type="Int">
+      <default>4</default>
+    </entry>
+    <entry name="iconSelect" type="string">
+      <default>AirPodsPro1&amp;2Icons</default>
+    </entry>
+    <entry name="iconSizeAverage" type="Int">
+      <default>40</default>
+    </entry>
+    <entry name="iconSizeLeftRight" type="Int">
+      <default>30</default>
+    </entry>
+    <entry name="iconSizeCase" type="Int">
+      <default>40</default>
+    </entry>
+    <entry name="iconWidthLeftRightFullRep" type="Int">
+      <default>30</default>
+    </entry>
+    <entry name="iconHeightLeftRightFullRep" type="Int">
+      <default>40</default>
+    </entry>
+    <entry name="iconWidthCaseFullRep" type="Int">
+      <default>40</default>
+    </entry>
+    <entry name="iconHeightCaseFullRep" type="Int">
+      <default>40</default>
+    </entry>
+  </group>
+</kcfg>
+
