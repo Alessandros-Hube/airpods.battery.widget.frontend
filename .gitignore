@@ -54,3 +54,10 @@ compile_commands.json
 *_qmlcache.qrc
 
 airstatus.out
+
+# Python venv
+bin/
+include/
+lib/
+lib64
+pyvenv.cfg
