@@ -496,7 +496,7 @@ PlasmoidItem {
                 visible: cfg.lastUpdateTextCheck
                 Text {
                     id: lastUpdated
-                    text: "Last updated: " + Tools.getLastUpdated()
+                    text: "Last updated: " + Qt.locale().toString(Tools.getLastUpdatedDate(), cfg.customDateFormat)
                     verticalAlignment: Text.AlignVCenter
                     font.pixelSize: cfg.fontSizeFullRepLU
                     font.bold: cfg.boldFullRepLU
@@ -556,7 +556,7 @@ PlasmoidItem {
                 }
 
                 // Update last update text
-                lastUpdated.text = "Last updated: " + Tools.getLastUpdated();
+                lastUpdated.text = "Last updated: " + Qt.locale().toString(Tools.getLastUpdatedDate(), cfg.customDateFormat);
 
                 toolTipSubText = updateToolTip();
                 updateIcons();

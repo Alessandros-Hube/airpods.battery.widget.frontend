@@ -144,6 +144,9 @@
     <entry name="colorFullRepLU" type="string">
       <default>white</default>
     </entry>
+    <entry name="customDateFormat" type="string">
+      <default>yyyy-MM-dd hh:mm:ss</default>
+    </entry>
   </group>
   <group name="Icons">
     <entry name="autoWidgetIcons" type="Bool">

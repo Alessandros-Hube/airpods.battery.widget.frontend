@@ -41,6 +41,7 @@ Kirigami.ScrollablePage {
     readonly property alias cfg_italicFullRepLU: italicFullRepLU.checked
     readonly property alias cfg_fontSizeFullRepLU: fontSizeFullRepLU.value
     readonly property alias cfg_colorFullRepLU: colorFullRepLU.color
+    readonly property alias cfg_customDateFormat: customDateFormat.text
 
     Kirigami.FormLayout {
         anchors.fill: parent
@@ -532,6 +533,42 @@ Kirigami.ScrollablePage {
                     }
                 }
             }
+        }
+
+        // Displaying options for the date format label and preview
+        RowLayout {
+            Kirigami.FormData.label: i18n("Date format:")
+            visible: lastUpdateTextCheck.checked
+
+            Label {
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                text: Qt.locale().toString(new Date(), customDateFormat.text);
+            }
+        }
+
+        // Entering a custom date format
+        TextField {
+            id: customDateFormat
+            Layout.fillWidth: true
+            visible: lastUpdateTextCheck.checked
+        }
+
+        // Label with a clickable link to Qt's time format documentation
+        Label {
+            text: i18n("<a href=\"https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method\">Time Format Documentation</a>")
+            visible: lastUpdateTextCheck.checked
+
+            wrapMode: Text.Wrap
+
+            Layout.preferredWidth: Layout.maximumWidth
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 16
+
+            HoverHandler {
+                cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : undefined
+            }
+
+            onLinkActivated: link => Qt.openUrlExternally(link)
         }
     }
 }
