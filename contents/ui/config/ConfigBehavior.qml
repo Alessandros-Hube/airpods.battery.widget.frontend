@@ -10,6 +10,7 @@ Kirigami.ScrollablePage {
     readonly property alias cfg_hiddenWidgetLastUpdate: hiddenWidgetLastUpdate.checked
     readonly property alias cfg_customTimeThreshold: customTimeThreshold.value
 
+    readonly property alias cfg_autoView: autoView.checked
     readonly property alias cfg_averageView: averageView.checked
     readonly property alias cfg_detailedView: detailedView.checked
     readonly property alias cfg_showCaseBattery: showCaseBattery.checked
@@ -62,6 +63,13 @@ Kirigami.ScrollablePage {
         // Column layout for AirPods panel display options
         ColumnLayout {
             Kirigami.FormData.label: i18n("AirPods panel display option:")
+
+            // Radio button for switching between average battery level of both AirPods and individual battery levels
+            RadioButton {
+                id: autoView
+                text: i18n("Automatic switching between average <br> battery level of both AirPods and <br> individual battery levels")
+                checked: !averageView.checked
+            }
 
             // Radio button for showing the average battery level of both AirPods
             RadioButton {

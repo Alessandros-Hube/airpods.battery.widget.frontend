@@ -136,7 +136,8 @@ PlasmoidItem {
         
             // Row for average charge and case charge in the compact view
             RowLayout {
-                visible: cfg.averageView
+                id: averageView
+                visible: cfg.averageView || (cfg.autoView && (Math.abs(Tools.getLeftCharge() - Tools.getRightCharge()) <= 10))
                 spacing: 5
 
                 // AirPods charge display
@@ -188,7 +189,8 @@ PlasmoidItem {
 
             // Row for detailed charge view (left and right AirPods)
             RowLayout {
-                visible: cfg.detailedView
+                id: detailedView
+                visible: cfg.detailedView || (cfg.autoView && (Math.abs(Tools.getLeftCharge() - Tools.getRightCharge()) > 10))
                 spacing: 10
 
                 RowLayout {
@@ -271,9 +273,13 @@ PlasmoidItem {
                 updateChargeTextCompRep(leftCharge, Tools.getLeftCharge());
                 updateChargeTextCompRep(rightCharge, Tools.getRightCharge());
 
+                const averageViewValue = cfg.autoView ? (Math.abs(Tools.getLeftCharge() - Tools.getRightCharge()) <= 10) : cfg.averageView;
+                averageView.visible = averageViewValue;
+                detailedView.visible = !averageViewValue;
+
                 if (cfg.showCaseBattery && Tools.getCaseCharge() != -1) {
                     let caseChargeValue = Tools.getCaseCharge();
-                    if (cfg.averageView) {
+                    if (averageViewValue) {
                         updateChargeTextCompRep(caseCharge, caseChargeValue);
                         caseChargeLayout.visible = true;
                         caseChargeLayout.width = 65;
@@ -285,9 +291,9 @@ PlasmoidItem {
                         compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 5.5;
                     }
                 } else {
-                    caseChargeLayout.visible = cfg.averageView ? false : caseChargeLayout1.visible = false;
+                    caseChargeLayout.visible = averageViewValue ? false : caseChargeLayout1.visible = false;
                     caseChargeLayout.width = 0;
-                    compactRep.Layout.minimumWidth = cfg.averageView ? Kirigami.Units.iconSizes.large * 2 : Kirigami.Units.iconSizes.large * 3.5;
+                    compactRep.Layout.minimumWidth = averageViewValue ? Kirigami.Units.iconSizes.large * 2 : Kirigami.Units.iconSizes.large * 3.5;
                 }
 
                 toolTipSubText = updateToolTip();

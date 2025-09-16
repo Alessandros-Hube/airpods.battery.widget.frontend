@@ -28,8 +28,11 @@
     <entry name="customTimeThreshold" type="Int">
       <default>4</default>
     </entry>
-    <entry name="averageView" type="Bool">
+    <entry name="autoView" type="Bool">
       <default>true</default>
+    </entry>
+    <entry name="averageView" type="Bool">
+      <default>false</default>
     </entry>
     <entry name="detailedView" type="Bool">
       <default>false</default>
