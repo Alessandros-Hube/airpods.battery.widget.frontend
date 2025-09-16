@@ -76,6 +76,8 @@ def get_data():
     # On 7th position we can get AirPods model, gen1, gen2, Pro or Max
     if chr(raw[7]) == 'e':
         model = "AirPodsPro"
+    elif chr(raw[7]) == '4':
+        model = "AirPodsPro2"
     elif chr(raw[7]) == '3':
         model = "AirPods3"
     elif chr(raw[7]) == 'f':
