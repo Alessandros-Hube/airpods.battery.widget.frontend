@@ -37,6 +37,18 @@ PlasmoidItem {
         intervalAlignment: P5Support.Types.AlignToMinute
     }
 
+    // Function to check if the last case update is older than a custom threshold
+    function isLastCaseUpdateOld(customTimeThreshold) {
+        var currentDateTime = new Date(dataSource.data.Local.DateTime); // First date
+        var lastCaseUpdated = Tools.getLastCaseUpdatedDate(); // Second date
+
+        // Convert milliseconds to hours
+        var diffInHours = (currentDateTime - lastCaseUpdated) / (1000 * 60 * 60);
+        return diffInHours > customTimeThreshold;
+
+        return false;
+    }
+
     // Function to update the icons
     function updateIcons() {
         if (cfg.autoWidgetIcons) {
@@ -165,7 +177,7 @@ PlasmoidItem {
                 // AirPods case charge display
                 RowLayout {
                     id: caseChargeLayout
-                    visible: cfg.showCaseBattery
+                    visible: cfg.showCaseBattery || cfg.autoHiddenCaseBattery
                     height: parent.height
                     width: childrenRect.width
                     spacing: 5
@@ -237,7 +249,7 @@ PlasmoidItem {
                 // AirPods case in detailed view
                 RowLayout {
                     id: caseChargeLayout1
-                    visible: cfg.showCaseBattery
+                    visible: cfg.showCaseBattery || cfg.autoHiddenCaseBattery
                     height: parent.height
                     width: childrenRect.width
                     spacing: 5
@@ -277,7 +289,7 @@ PlasmoidItem {
                 averageView.visible = averageViewValue;
                 detailedView.visible = !averageViewValue;
 
-                if (cfg.showCaseBattery && Tools.getCaseCharge() != -1) {
+                if ((cfg.showCaseBattery && Tools.getCaseCharge() != -1) || (cfg.autoHiddenCaseBattery && !isLastCaseUpdateOld(cfg.customTimeThreshold2))) {
                     let caseChargeValue = Tools.getCaseCharge();
                     if (averageViewValue) {
                         updateChargeTextCompRep(caseCharge, caseChargeValue);

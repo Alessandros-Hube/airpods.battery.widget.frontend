@@ -7,6 +7,7 @@ let caseCharge = -1;
 let isCaseCharging = false;
 let airPodsModel = "unknown";
 let lastUpdated = "2000-01-01 00:00:00";
+let lastCaseUpdated = "2000-01-01 00:00:00";
 let env = true;
 
 // Function to get the average charge of left and right AirPods
@@ -57,6 +58,26 @@ function getLastUpdated() {
 // Function to get the timestamp of the last battery status update as date object
 function getLastUpdatedDate() {
     var parts = lastUpdated.split(" "); // Split the string
+    var dateParts = parts[0].split("-"); // Split the date
+    var timeParts = parts[1].split(":"); // Split the time
+    return new Date(
+        dateParts[0],            // Year
+        dateParts[1] - 1,        // Month (0-based)
+        dateParts[2],            // Day
+        timeParts[0],            // Hours
+        timeParts[1],            // Minutes
+        timeParts[2]             // Seconds
+    );
+}
+
+// Function to get the timestamp of the last battery status update as raw string from backend
+function getLastCaseUpdated() {
+    return lastCaseUpdated;
+}
+
+// Function to get the timestamp of the last battery status update as date object
+function getLastCaseUpdatedDate() {
+    var parts = lastCaseUpdated.split(" "); // Split the string
     var dateParts = parts[0].split("-"); // Split the date
     var timeParts = parts[1].split(":"); // Split the time
     return new Date(
@@ -131,6 +152,7 @@ function updateBatteryStatus(outPutFile, refRawValue = "-1") {
 
                     // Update case charge only if it is a valid value (-1 means no data)
                     caseCharge = jsonData.charge.case == -1 ? caseCharge : jsonData.charge.case;
+                    lastCaseUpdated = jsonData.charge.case == -1 ? lastCaseUpdated : jsonData.date;
                     isCaseCharging = jsonData.charging_case;
 
                     airPodsModel = jsonData.model;
