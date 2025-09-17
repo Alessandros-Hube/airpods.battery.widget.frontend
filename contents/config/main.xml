@@ -55,6 +55,12 @@
     <entry name="showAvailableCaseBatteryFullRep" type="Bool">
       <default>false</default>
     </entry>
+    <entry name="autoHiddenCaseBatteryFullRep" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="customTimeThreshold3" type="Int">
+      <default>2</default>
+    </entry>
     <entry name="doNotShowCaseBatteryFullRep" type="Bool">
       <default>fasle</default>
     </entry>

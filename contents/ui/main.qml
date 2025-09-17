@@ -553,7 +553,7 @@ PlasmoidItem {
                     fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 20
                     updateChargeTextCompFull(caseChargeText, caseChargeRaw);
                     renderAirpodCircle(circleCanvas3, caseChargeRaw, caseIconPath, isCaseCharging, cfg.iconWidthCaseFullRep, cfg.iconHeightCaseFullRep);
-                } else if (cfg.showAvailableCaseBatteryFullRep) {
+                } else if (cfg.showAvailableCaseBatteryFullRep || (cfg.autoHiddenCaseBatteryFullRep && !isLastCaseUpdateOld(cfg.customTimeThreshold3))) {
                     if (caseChargeRaw != -1) {
                         caseView.visible = true;
                         fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 20
