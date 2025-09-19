@@ -1,12 +1,10 @@
 import QtQuick 2.12
 import QtQuick.Layouts 1.12
 
-import org.kde.plasma.plasmoid 2.0
-import org.kde.plasma.plasma5support 2.0 as P5Support
-import org.kde.plasma.components 3.0 as PlasmaComponents3
-import org.kde.kirigami 2.20 as Kirigami
-
 import org.kde.bluezqt 1.0 as BluezQt
+import org.kde.kirigami 2.20 as Kirigami
+import org.kde.notification 1.0
+import org.kde.plasma.plasmoid 2.0
 
 import "../tools/Tools.js"       as Tools
 
@@ -29,24 +27,10 @@ PlasmoidItem {
     toolTipMainText: "AirPods Battery Widget"
     toolTipSubText: updateToolTip()
 
-    P5Support.DataSource {
-        id: dataSource
-        engine: "time"
-        connectedSources: ["Local"]
-        interval: 60000
-        intervalAlignment: P5Support.Types.AlignToMinute
-    }
-
-    // Function to check if the last case update is older than a custom threshold
-    function isLastCaseUpdateOld(customTimeThreshold) {
-        var currentDateTime = new Date(dataSource.data.Local.DateTime); // First date
-        var lastCaseUpdated = Tools.getLastCaseUpdatedDate(); // Second date
-
-        // Convert milliseconds to hours
-        var diffInHours = (currentDateTime - lastCaseUpdated) / (1000 * 60 * 60);
+    // Function to check if the last update is older than a custom threshold
+    function isLastUpdateOlderThanThreshold(lastUpdated, customTimeThreshold) {
+        var diffInHours = (new Date() - lastUpdated) / (1000 * 60 * 60);
         return diffInHours > customTimeThreshold;
-
-        return false;
     }
 
     // Function to update the icons
@@ -289,7 +273,7 @@ PlasmoidItem {
                 averageView.visible = averageViewValue;
                 detailedView.visible = !averageViewValue;
 
-                if ((cfg.showCaseBattery && Tools.getCaseCharge() != -1) || (cfg.autoHiddenCaseBattery && !isLastCaseUpdateOld(cfg.customTimeThreshold2))) {
+                if ((cfg.showCaseBattery && Tools.getCaseCharge() != -1) || (cfg.autoHiddenCaseBattery && !isLastUpdateOlderThanThreshold(Tools.getLastCaseUpdatedDate(), cfg.customTimeThreshold2))) {
                     let caseChargeValue = Tools.getCaseCharge();
                     if (averageViewValue) {
                         updateChargeTextCompRep(caseCharge, caseChargeValue);
@@ -311,19 +295,7 @@ PlasmoidItem {
                 toolTipSubText = updateToolTip();
                 updateIcons();
 
-                let isLastUpdateOld = false;
-
-                if (cfg.hiddenWidgetLastUpdate) {
-                    const currentDateTime = new Date(dataSource.data.Local.DateTime); // First date
-                    const lastUpdated = Tools.getLastUpdatedDate(); // Second date
-
-                    // Convert milliseconds to hours
-                    const diffInHours = (currentDateTime - lastUpdated) / (1000 * 60 * 60);
-
-                    isLastUpdateOld = diffInHours > cfg.customTimeThreshold;
-                }
-
-                compactRep.visible = !((!btManager.bluetoothOperational && cfg.hiddenWidgetBt) || isLastUpdateOld);
+                compactRep.visible = !((!btManager.bluetoothOperational && cfg.hiddenWidgetBt) || (isLastUpdateOlderThanThreshold(Tools.getLastUpdatedDate(), cfg.customTimeThreshold) && cfg.hiddenWidgetLastUpdate));
 
                 if (!compactRep.visible) {
                     compactRep.Layout.minimumWidth = 4;
@@ -553,7 +525,7 @@ PlasmoidItem {
                     fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 20
                     updateChargeTextCompFull(caseChargeText, caseChargeRaw);
                     renderAirpodCircle(circleCanvas3, caseChargeRaw, caseIconPath, isCaseCharging, cfg.iconWidthCaseFullRep, cfg.iconHeightCaseFullRep);
-                } else if (cfg.showAvailableCaseBatteryFullRep || (cfg.autoHiddenCaseBatteryFullRep && !isLastCaseUpdateOld(cfg.customTimeThreshold3))) {
+                } else if (cfg.showAvailableCaseBatteryFullRep || (cfg.autoHiddenCaseBatteryFullRep && !isLastUpdateOlderThanThreshold(Tools.getLastUpdatedDate(), cfg.customTimeThreshold3))) {
                     if (caseChargeRaw != -1) {
                         caseView.visible = true;
                         fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 20
