@@ -236,11 +236,15 @@ Kirigami.ScrollablePage {
 
     // Timer to monitor the output generation by the backend script
     Timer {
+        id: timer
         interval: 600
         running: true
         repeat: true
         onTriggered: {
             wait.visible = (!Tools.fileExists("../../airstatus.out") && widgetScript.checked && !widgetScriptMessage.visible);
+            if (!wait.visible) {
+                timer.running = timer.repeat = false;
+            }
         }
     }
 }
