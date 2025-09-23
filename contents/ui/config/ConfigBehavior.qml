@@ -26,10 +26,10 @@ Kirigami.ScrollablePage {
     readonly property alias cfg_doNotShowCaseBatteryFullRep: doNotShowCaseBatteryFullRep.checked
 
     Kirigami.FormLayout {
-        // Section for general widget behavior settings
+        // Section for control panel view settings
         Kirigami.Separator {
             Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: i18n("Generale Wight Behavior")
+            Kirigami.FormData.label: i18n("Control Panel View")
         }
 
         // Checkbox to hide the widget when Bluetooth is off
@@ -59,10 +59,22 @@ Kirigami.ScrollablePage {
             }
         }
 
-        // Section for control panel view settings
+        // Inline message shown when the widget is hidden or recently updated
+        Kirigami.InlineMessage {
+            visible: hiddenWidgetBt.checked || hiddenWidgetLastUpdate.checked
+            text: i18n("Note: The widget will always show in Plasma edit mode.")
+            anchors.left: parent.left
+            anchors.right: parent.right
+            font.pixelSize: 12
+            font.bold: true
+        }
+
         Kirigami.Separator {
-            Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: i18n("Control Panel View")
+            Kirigami.FormData.isSection: false
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: false
         }
 
         // Column layout for AirPods panel display options

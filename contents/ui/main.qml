@@ -20,6 +20,8 @@ PlasmoidItem {
     property string rightIconPath:      iconBasePath + "/airpod-right.png"
     property string caseIconPath:       iconBasePath + "/airpods-case.png"
 
+    property bool isWidgetVisible: false
+
     switchWidth: Kirigami.Units.gridUnit * 12
     switchHeight: Kirigami.Units.gridUnit * 12
 
@@ -87,6 +89,36 @@ PlasmoidItem {
 
         visible: !btManager.bluetoothOperational && cfg.hiddenWight
 
+        states: [
+            State{
+                name: "editMode"
+                // This state is active when the Plasmoid is in edit mode
+                when:  Plasmoid.containment.corona?.editMode?true:false
+                changes: [
+                    PropertyChanges {
+                        target: compactRep
+                        visible: {
+                            if (!isWidgetVisible) {
+                                compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 3.5;
+                                return true;
+                            }
+                            return false;
+                        }
+                    },
+                    PropertyChanges {
+                        target: editModeView
+                        visible: {
+                            if (!isWidgetVisible) {
+                                displayingView.visible = false;
+                                return true;
+                            }
+                            return false;
+                        }
+                    }
+                ]
+            }
+        ]
+
         // Minimum size for the compact view
         Layout.minimumWidth: Kirigami.Units.iconSizes.large * 5.5
         Layout.minimumHeight: Kirigami.Units.iconSizes.large
@@ -98,6 +130,31 @@ PlasmoidItem {
         function updateChargeTextCompRep(textElement, chargeRaw) {
             updateChargeText(textElement, chargeRaw);
             textElement.color = chargeRaw != -1 && chargeRaw < 20 && cfg.diffColorCompRepCheck ? cfg.diffColorCompRep : cfg.colorCompRep;
+        }
+
+        // Layout for edit mode view
+        ColumnLayout {
+            id: editModeView
+            visible: false
+            anchors.centerIn: parent
+            RowLayout {
+                spacing: 5
+                Row {
+                    Kirigami.Icon {
+                        source: Qt.resolvedUrl(averageIconPath)
+                        height: cfg.iconSizeAverage
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+                Text {
+                    text: "Edit Mode"
+                    visible: true
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "white"
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
         }
 
         ColumnLayout {
@@ -260,8 +317,8 @@ PlasmoidItem {
         // Timer to regularly update the battery status
         Timer {
             interval: 600
-            running: true
-            repeat: true
+            running: !editModeView.visible
+            repeat: !editModeView.visible
 
             // Triggered function to update the charge values in compact representation
             onTriggered: {
@@ -295,7 +352,7 @@ PlasmoidItem {
                 toolTipSubText = updateToolTip();
                 updateIcons();
 
-                compactRep.visible = !((!btManager.bluetoothOperational && cfg.hiddenWidgetBt) || (isLastUpdateOlderThanThreshold(Tools.getLastUpdatedDate(), cfg.customTimeThreshold) && cfg.hiddenWidgetLastUpdate));
+                compactRep.visible = isWidgetVisible = !((!btManager.bluetoothOperational && cfg.hiddenWidgetBt) || (isLastUpdateOlderThanThreshold(Tools.getLastUpdatedDate(), cfg.customTimeThreshold) && cfg.hiddenWidgetLastUpdate));
 
                 if (!compactRep.visible) {
                     compactRep.Layout.minimumWidth = 4;
