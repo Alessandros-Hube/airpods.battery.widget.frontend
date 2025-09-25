@@ -15,7 +15,7 @@
         "ServiceTypes": [
             "Plasma/Applet"
         ],
-        "Version": "1",
+        "Version": "1.1.0",
         "Website": "https://github.com/Alessandros-Hube/airpods.battery.widget.frontend"
     },
     "X-Plasma-API-Minimum-Version": "6.0",
