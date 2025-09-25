@@ -10,20 +10,26 @@ Kirigami.ScrollablePage {
     readonly property alias cfg_hiddenWidgetLastUpdate: hiddenWidgetLastUpdate.checked
     readonly property alias cfg_customTimeThreshold: customTimeThreshold.value
 
+    readonly property alias cfg_autoView: autoView.checked
     readonly property alias cfg_averageView: averageView.checked
     readonly property alias cfg_detailedView: detailedView.checked
+
     readonly property alias cfg_showCaseBattery: showCaseBattery.checked
+    readonly property alias cfg_autoHiddenCaseBattery: autoHiddenCaseBattery.checked
+    readonly property alias cfg_customTimeThreshold2: customTimeThreshold2.value
     readonly property alias cfg_doNotShowCaseBattery: doNotShowCaseBattery.checked
 
     readonly property alias cfg_showAlwaysCaseBatteryFullRep: showAlwaysCaseBatteryFullRep.checked
     readonly property alias cfg_showAvailableCaseBatteryFullRep: showAvailableCaseBatteryFullRep.checked
+    readonly property alias cfg_autoHiddenCaseBatteryFullRep: autoHiddenCaseBatteryFullRep.checked
+    readonly property alias cfg_customTimeThreshold3: customTimeThreshold3.value
     readonly property alias cfg_doNotShowCaseBatteryFullRep: doNotShowCaseBatteryFullRep.checked
 
     Kirigami.FormLayout {
-        // Section for general widget behavior settings
+        // Section for control panel view settings
         Kirigami.Separator {
             Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: i18n("Generale Wight Behavior")
+            Kirigami.FormData.label: i18n("Control Panel View")
         }
 
         // Checkbox to hide the widget when Bluetooth is off
@@ -49,19 +55,38 @@ Kirigami.ScrollablePage {
                 stepSize: 1
             }
             PC3.Label {
-                text: customTimeThreshold.value + " hours"
+                text: i18n(customTimeThreshold.value + (customTimeThreshold.value == 1 ? " hour." : " hours."))
             }
         }
 
-        // Section for control panel view settings
+        // Inline message shown when the widget is hidden or recently updated
+        Kirigami.InlineMessage {
+            visible: hiddenWidgetBt.checked || hiddenWidgetLastUpdate.checked
+            text: i18n("Note: The widget will always show in Plasma edit mode.")
+            anchors.left: parent.left
+            anchors.right: parent.right
+            font.pixelSize: 12
+            font.bold: true
+        }
+
         Kirigami.Separator {
-            Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: i18n("Control Panel View")
+            Kirigami.FormData.isSection: false
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: false
         }
 
         // Column layout for AirPods panel display options
         ColumnLayout {
             Kirigami.FormData.label: i18n("AirPods panel display option:")
+
+            // Radio button for switching between average battery level of both AirPods and individual battery levels
+            RadioButton {
+                id: autoView
+                text: i18n("Automatic switching between average <br> battery level of both AirPods and <br> individual battery levels")
+                checked: !averageView.checked
+            }
 
             // Radio button for showing the average battery level of both AirPods
             RadioButton {
@@ -77,6 +102,14 @@ Kirigami.ScrollablePage {
             }
         }
 
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: false
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: false
+        }
+
         // Column layout for AirPods case panel display options
         ColumnLayout{
             Kirigami.FormData.label: i18n("AirPods case panel display option:")
@@ -85,13 +118,49 @@ Kirigami.ScrollablePage {
             RadioButton {
                 id: showCaseBattery
                 text: i18n("Show last available battery level of the case")
-                checked: !doNotShowCaseBattery.checked
+                onToggled: {
+                    autoHiddenCaseBattery.checked = false;
+                    doNotShowCaseBattery.checked = false;
+                }
+            }
+
+            RowLayout {
+                // Radio button to hide the case battery after a custom time
+                RadioButton {
+                    id: autoHiddenCaseBattery
+                    text: i18n("Hide the case battery after")
+                    onToggled: {
+                        showCaseBattery.checked = false;
+                        doNotShowCaseBattery.checked = false;
+                    }
+
+                    ToolTip {
+                        text: i18n("The last available battery level of the case will be hidden after " + customTimeThreshold2.value + (customTimeThreshold2.value == 1 ? " hour." : " hours."))
+                    }
+                }
+
+                // SpinBox to select the custom time threshold (in hours)
+                SpinBox {
+                    id: customTimeThreshold2
+                    enabled: autoHiddenCaseBattery.checked
+                    from: 1
+                    to: 24
+                    stepSize: 1
+                }
+
+                Label {
+                    text: i18n(customTimeThreshold2.value == 1 ? " hour." : " hours.")
+                }
             }
 
             // Radio button to hide the case battery level
             RadioButton {
                 id: doNotShowCaseBattery
                 text: i18n("Don't show case battery level")
+                onToggled: {
+                    showCaseBattery.checked = false;
+                    autoHiddenCaseBattery.checked = false;
+                }
             }
         }
 
@@ -109,21 +178,63 @@ Kirigami.ScrollablePage {
             RadioButton {
                 id: showAlwaysCaseBatteryFullRep
                 text: i18n("Always show case battery level")
-                checked: !doNotShowCaseBatteryFullRep.checked && !showAvailableCaseBatteryFullRep.checked
+                onToggled: {
+                    showAvailableCaseBatteryFullRep.checked = false
+                    autoHiddenCaseBatteryFullRep.checked = false;
+                    doNotShowCaseBatteryFullRep.checked = false;
+                }
             }
         
             // Radio button to show the last available battery level of the case
             RadioButton {
                 id: showAvailableCaseBatteryFullRep
                 text: i18n("Show last available battery level of the case")
-                checked: !doNotShowCaseBatteryFullRep.checked && !showAlwaysCaseBatteryFullRep.checked
+                onToggled: {
+                    showAlwaysCaseBatteryFullRep.checked = false
+                    autoHiddenCaseBatteryFullRep.checked = false;
+                    doNotShowCaseBatteryFullRep.checked = false;
+                }
+            }
+
+            RowLayout {
+                // Radio button to hide the case battery after a custom time
+                RadioButton {
+                    id: autoHiddenCaseBatteryFullRep
+                    text: i18n("Hide the case battery after")
+                    onToggled: {
+                        showAlwaysCaseBatteryFullRep.checked = false
+                        showAvailableCaseBatteryFullRep.checked = false;
+                        doNotShowCaseBatteryFullRep.checked = false;
+                    }
+
+                    ToolTip {
+                        text: i18n("The last available battery level of the case will be hidden after " + customTimeThreshold3.value + (customTimeThreshold3.value == 1 ? " hour." : " hours."))
+                    }
+                }
+
+                // SpinBox to select the custom time threshold (in hours)
+                SpinBox {
+                    id: customTimeThreshold3
+                    enabled: autoHiddenCaseBatteryFullRep.checked
+                    from: 1
+                    to: 24
+                    stepSize: 1
+                }
+
+                Label {
+                    text: i18n(customTimeThreshold3.value == 1 ? " hour." : " hours.")
+                }
             }
         
             // Radio button to hide the case battery level
             RadioButton {
                 id: doNotShowCaseBatteryFullRep
                 text: i18n("Don't show case battery level")
-                checked: !showAlwaysCaseBatteryFullRep.checked && !showAvailableCaseBatteryFullRep.checked
+                onToggled: {
+                    showAvailableCaseBatteryFullRep.checked = false
+                    autoHiddenCaseBatteryFullRep.checked = false;
+                    showAlwaysCaseBatteryFullRep.checked = false;
+                }
             }
         }
     }

@@ -16,14 +16,15 @@ This project is a fully customizable Plasma widget designed to display the batte
     - AirPods Gen. 2
     - AirPods Gen. 3
     - AirPods Pro Gen. 1
+    - AirPods Pro Gen. 2
 
 - Partially Supported:
-    - AirPods Pro Gen. 2 and AirPods Gen. 4:
+    - AirPods Pro Gen. 3 and AirPods Gen. 4:
         - These devices are not fully recognized by the backend script. While the battery levels are displayed correctly, the model name may appear as "unknown."
         - You can manually update the title using the Appearance category in the widget settings.
 
-    - Not Supported:
-        - AirPods Max: This widget does not support AirPods Max.
+- Not Supported:
+    - AirPods Max: This widget does not support AirPods Max.
 
 # Setup Instructions
 
@@ -65,12 +66,13 @@ Autostart Backend Script (for Default Script)
 
 # Why Might the Title Be Unknown?
 
-If the AirPods model is not recognized (e.g., AirPods Pro Gen. 2 or AirPods Gen. 4), the widget will display the title as "unknown." This is because the backend script (based on AirStatus) currently distinguishes only between the following models:
+If the AirPods model is not recognized (e.g., AirPods Pro Gen. 3 or AirPods Gen. 4), the widget will display the title as "unknown." This is because the backend script (based on AirStatus) currently distinguishes only between the following models:
 
 - AirPods Gen. 1
 - AirPods Gen. 2
 - AirPods Gen. 3
 - AirPods Pro Gen. 1
+- AirPods Pro Gen. 2
 
 For newer or unsupported models, the backend script cannot identify the specific model, though battery levels will still be accurate.
 

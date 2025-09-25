@@ -1,0 +1,9 @@
+[Global]
+IconName=headphone
+Comment=AirPods Battery Widget
+
+[Event/notification]
+Name=Battery Notification
+Comment=AirPods battery status
+Action=Popup|Sound
+Sound=message-new-instant.ogg

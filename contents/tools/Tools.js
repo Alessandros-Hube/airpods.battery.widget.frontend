@@ -7,6 +7,7 @@ let caseCharge = -1;
 let isCaseCharging = false;
 let airPodsModel = "unknown";
 let lastUpdated = "2000-01-01 00:00:00";
+let lastCaseUpdated = "2000-01-01 00:00:00";
 let env = true;
 
 // Function to get the average charge of left and right AirPods
@@ -49,14 +50,9 @@ function getAirPodsModel() {
     return airPodsModel;
 }
 
-// Function to get the timestamp of the last battery status update as raw string from backend
-function getLastUpdated() {
-    return lastUpdated;
-}
-
-// Function to get the timestamp of the last battery status update as date object
-function getLastUpdatedDate() {
-    var parts = lastUpdated.split(" "); // Split the string
+// Function to get the timestamp as date object
+function getDateObject(timestamp) {
+    var parts = timestamp.split(" "); // Split the string
     var dateParts = parts[0].split("-"); // Split the date
     var timeParts = parts[1].split(":"); // Split the time
     return new Date(
@@ -69,6 +65,26 @@ function getLastUpdatedDate() {
     );
 }
 
+// Function to get the timestamp of the last battery status update as raw string from backend
+function getLastUpdated() {
+    return lastUpdated;
+}
+
+// Function to get the timestamp of the last battery status update as date object
+function getLastUpdatedDate() {
+    return getDateObject(lastUpdated);
+}
+
+// Function to get the timestamp of the last battery status update as raw string from backend
+function getLastCaseUpdated() {
+    return lastCaseUpdated;
+}
+
+// Function to get the timestamp of the last case battery status update as date object
+function getLastCaseUpdatedDate() {
+    return getDateObject(lastCaseUpdated);
+}
+
 // Function to check if a specified file exists
 function fileExists(outPutFile) {
     if (outPutFile) {
@@ -79,6 +95,11 @@ function fileExists(outPutFile) {
     } else {
         return false;
     }
+}
+
+// Function to check if the AirPods notification configuration file exists
+function existsNotifyrc() {
+    return fileExists('../../../../../knotifications6/airPodsBatteryWidget.notifyrc');
 }
 
 // Function to check if an auto-start configuration is set
@@ -131,6 +152,7 @@ function updateBatteryStatus(outPutFile, refRawValue = "-1") {
 
                     // Update case charge only if it is a valid value (-1 means no data)
                     caseCharge = jsonData.charge.case == -1 ? caseCharge : jsonData.charge.case;
+                    lastCaseUpdated = jsonData.charge.case == -1 ? lastCaseUpdated : jsonData.date;
                     isCaseCharging = jsonData.charging_case;
 
                     airPodsModel = jsonData.model;
