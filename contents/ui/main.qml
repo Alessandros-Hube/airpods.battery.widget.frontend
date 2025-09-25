@@ -22,12 +22,62 @@ PlasmoidItem {
 
     property bool isWidgetVisible: false
 
+    property bool sendFirstAirPodsNotification: false
+    property bool sendSecondAirPodsNotification: false
+
+    property bool sendFirstLeftPodNotification: false
+    property bool sendSecondLeftPodNotification: false
+
+    property bool sendFirstRightPodNotification: false
+    property bool sendSecondRightPodNotification: false
+
+    property bool sendFirstCaseNotification: false
+    property bool sendSecondCaseNotification: false
+
+    property var airpodsNotification: None
+    property var leftPodNotification: None
+    property var rightPodNotification: None
+    property var caseNotification: None
+
     switchWidth: Kirigami.Units.gridUnit * 12
     switchHeight: Kirigami.Units.gridUnit * 12
 
     // Tooltip text for the widget
     toolTipMainText: "AirPods Battery Widget"
     toolTipSubText: updateToolTip()
+
+    // Function to send a battery level notification for AirPods or the case
+    function sendBatteryNotification(name, batteryLowSpin, iconSwitch, iconPath, urgencySwitch) {
+        return sendNotification(name + " battery level low ("+ batteryLowSpin +"%)", "", iconSwitch ? Qt.resolvedUrl(iconPath).toString().split("file://")[1] : "/", urgencySwitch ? "CriticalUrgency" : "NormalUrgency");
+    }
+
+    // Generic function to send a notification
+    function sendNotification(title = "", text = "", iconName = "/", urgency = "NormalUrgency") {
+        var notification = notificationComponent.createObject(parent);
+        notification.title = title;
+        notification.text = text;
+        notification.iconName = iconName;
+        notification.urgency = urgency;
+        notification.sendEvent();
+        return notification;
+    }
+
+    // Function to handle notification
+    function handleNotification(currentFlag, threshold, charge, enabled, urgencySwitch, iconSwitch, iconPath, name, currentNotification) {
+        if (!enabled || charge === -1) return { flag: currentFlag, notification: currentNotification };
+
+        if (!currentFlag && charge <= threshold) {
+            if (currentNotification) currentNotification.destroy();
+            currentNotification = sendBatteryNotification(name, charge, iconSwitch, iconPath, urgencySwitch);
+            currentFlag = true;
+        } else if (currentFlag && charge > threshold) {
+            currentFlag = false;
+            if (currentNotification) currentNotification.destroy();
+            currentNotification = null;
+        }
+
+        return { flag: currentFlag, notification: currentNotification };
+    }
 
     // Function to check if the last update is older than a custom threshold
     function isLastUpdateOlderThanThreshold(lastUpdated, customTimeThreshold) {
@@ -619,15 +669,91 @@ PlasmoidItem {
         }
     }
 
-    // Timer to periodically check and update battery status
+    // Timer to periodically check and update battery status and send notification
     Timer {
         interval: 6000
         running: true
         repeat: true
         onTriggered: {
             if (Tools.isEnvSet() && (Tools.isAutoStartSet() || Tools.fileExists(cfg.outPutFile))) {
-                Tools.updateBatteryStatus(cfg.otherScript ? cfg.outPutFile : cfg.widgetScript ? "../../airstatus.out" : "", cfg.optimizerOptions ? cfg.refRawValue : "-1");
+                Tools.updateBatteryStatus(cfg.otherScript ? cfg.outPutFile : cfg.widgetScript ? "../../airstatus.out" : "", cfg.optimizerOptions ? cfg.refRawValue : "-1");    
+                
+                if (cfg.allowNotification && isWidgetVisible) {
+                    if ((Math.abs(Tools.getLeftCharge() - Tools.getRightCharge()) > 10)) {
+                        if (airpodsNotification) {
+                            airpodsNotification.destroy();
+                            airpodsNotification = None;
+                            sendFirstAirPodsNotification = sendSecondAirPodsNotification = false;
+                        }
+                        
+                        // Left Pod Notifications
+                        var podResult = handleNotification(sendSecondLeftPodNotification, cfg.secondPodsBatteryLowSpin, Tools.getLeftCharge(), cfg.secondPodsNotificationSwitch, cfg.secondPodsUrgencySwitch, cfg.secondPodsIconSwitch, leftIconPath, "Left AirPod", leftPodNotification);
+                        sendSecondLeftPodNotification = podResult.flag;
+                        leftPodNotification = podResult.notification;
+
+                        if (!sendSecondLeftPodNotification) {
+                            podResult = handleNotification(sendFirstLeftPodNotification, cfg.firstPodsBatteryLowSpin, Tools.getLeftCharge(), cfg.firstPodsNotificationSwitch, cfg.firstPodsUrgencySwitch, cfg.firstPodsIconSwitch, leftIconPath, "Left AirPod", leftPodNotification);
+                            sendFirstLeftPodNotification = podResult.flag;
+                            leftPodNotification = podResult.notification;
+                        }
+
+                        // Right Pod Notifications
+                        var podResult = handleNotification(sendSecondRightPodNotification, cfg.secondPodsBatteryLowSpin, Tools.getRightCharge(), cfg.secondPodsNotificationSwitch, cfg.secondPodsUrgencySwitch, cfg.secondPodsIconSwitch, rightIconPath, "Right AirPod", rightPodNotification);
+                        sendSecondRightPodNotification = podResult.flag;
+                        rightPodNotification = podResult.notification;
+
+                        if (!sendSecondRightPodNotification) {
+                            podResult = handleNotification(sendFirstRightPodNotification, cfg.firstPodsBatteryLowSpin, Tools.getRightCharge(), cfg.firstPodsNotificationSwitch, cfg.firstPodsUrgencySwitch, cfg.firstPodsIconSwitch, rightIconPath, "Right AirPod", rightPodNotification);
+                            sendFirstRightPodNotification = podResult.flag;
+                            rightPodNotification = podResult.notification;
+                        }
+                    } else {
+                        if (leftPodNotification) {
+                            leftPodNotification.destroy();
+                            leftPodNotification = None;
+                            sendFirstLeftPodNotification = sendSecondLeftPodNotification = false;
+                        }
+
+                        if (rightPodNotification) {
+                            rightPodNotification.destroy();
+                            rightPodNotification = None;
+                            sendFirstRightPodNotification = sendSecondRightPodNotification = false;
+                        }
+
+                        // AirPods Notifications
+                        var podResult = handleNotification(sendSecondAirPodsNotification, cfg.secondPodsBatteryLowSpin, Tools.getAverageCharge(), cfg.secondPodsNotificationSwitch, cfg.secondPodsUrgencySwitch, cfg.secondPodsIconSwitch, averageIconPath, "AirPods", airpodsNotification);
+                        sendSecondAirPodsNotification = podResult.flag;
+                        airpodsNotification = podResult.notification;
+
+                        if (!sendSecondAirPodsNotification) {
+                            podResult = handleNotification(sendFirstAirPodsNotification, cfg.firstPodsBatteryLowSpin, Tools.getAverageCharge(), cfg.firstPodsNotificationSwitch, cfg.firstPodsUrgencySwitch, cfg.firstPodsIconSwitch, averageIconPath, "AirPods", airpodsNotification);
+                            sendFirstAirPodsNotification = podResult.flag;
+                            airpodsNotification = podResult.notification;
+                        }
+                    }
+                    
+                    // Case Notifications
+                    var caseResult = handleNotification(sendSecondCaseNotification, cfg.secondCaseBatteryLowSpin, Tools.getCaseCharge(), cfg.secondCaseNotificationSwitch, cfg.secondCaseUrgencySwitch, cfg.secondCaseIconSwitch, caseIconPath, "AirPods Case", caseNotification);
+                    sendSecondCaseNotification = caseResult.flag;
+                    caseNotification = caseResult.notification;
+
+                    if (!sendSecondCaseNotification) {
+                        caseResult = handleNotification(sendFirstCaseNotification, cfg.firstCaseBatteryLowSpin, Tools.getCaseCharge(), cfg.firstCaseNotificationSwitch, cfg.firstCaseUrgencySwitch, cfg.firstCaseIconSwitch, caseIconPath, "AirPods Case", caseNotification);
+                        sendFirstCaseNotification = caseResult.flag;
+                        caseNotification = caseResult.notification;
+                    }
+                }
             }
+        }
+    }
+
+    // Component used to create notifications dynamically
+    Component {
+        id: notificationComponent
+        Notification {
+            componentName: Tools.existsNotifyrc() ? "airPodsBatteryWidget" : "plasma_workspace"
+            eventId: "notification"
+            autoDelete: true
         }
     }
 

@@ -97,6 +97,11 @@ function fileExists(outPutFile) {
     }
 }
 
+// Function to check if the AirPods notification configuration file exists
+function existsNotifyrc() {
+    return fileExists('../../../../../knotifications6/airPodsBatteryWidget.notifyrc');
+}
+
 // Function to check if an auto-start configuration is set
 function isAutoStartSet() {
     return fileExists('../../../../../../../.config/autostart/run.sh.desktop');

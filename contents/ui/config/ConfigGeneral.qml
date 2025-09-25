@@ -155,6 +155,15 @@ Kirigami.ScrollablePage {
             icon.source: "dialog-positive"
         }
 
+        // Information for optional configuration in the widget's notification section
+        Kirigami.InlineMessage {
+            visible: finishBackendSetupMessage.visible && cfg.allowNotification && !Tools.existsNotifyrc()
+            anchors.left: root.left
+            anchors.right: root.right
+            text: i18n("Optional configuration: You can adjust additional configurations in the widget's notification section.")
+            font.pixelSize: 12
+        }
+
         // Information to wait for the initial output
         Kirigami.InlineMessage {
             id: wait

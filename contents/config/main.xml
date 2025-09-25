@@ -201,5 +201,58 @@
       <default>40</default>
     </entry>
   </group>
+  <group name="Notification">
+    <entry name="allowNotification" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="firstPodsNotificationSwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="firstPodsIconSwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="firstPodsUrgencySwitch" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="firstPodsBatteryLowSpin" type="Int">
+      <default>15</default>
+    </entry>
+    <entry name="secondPodsNotificationSwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="secondPodsIconSwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="secondPodsUrgencySwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="secondPodsBatteryLowSpin" type="Int">
+      <default>5</default>
+    </entry>
+    <entry name="firstCaseNotificationSwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="firstCaseIconSwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="firstCaseUrgencySwitch" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="firstCaseBatteryLowSpin" type="Int">
+      <default>40</default>
+    </entry>
+    <entry name="secondCaseNotificationSwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="secondCaseIconSwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="secondCaseUrgencySwitch" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="secondCaseBatteryLowSpin" type="Int">
+      <default>20</default>
+    </entry>
+  </group>
 </kcfg>
 
