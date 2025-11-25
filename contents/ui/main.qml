@@ -148,7 +148,7 @@ PlasmoidItem {
                     PropertyChanges {
                         target: compactRep
                         visible: {
-                            if (!isWidgetVisible) {
+                            if (!isWidgetVisible && !setupView.visible) {
                                 compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 3.5;
                                 return true;
                             }
@@ -158,7 +158,7 @@ PlasmoidItem {
                     PropertyChanges {
                         target: editModeView
                         visible: {
-                            if (!isWidgetVisible) {
+                            if (!isWidgetVisible && !setupView.visible) {
                                 displayingView.visible = false;
                                 return true;
                             }
