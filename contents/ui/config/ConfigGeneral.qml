@@ -176,12 +176,15 @@ Kirigami.ScrollablePage {
 
         // Information about unknown model
         Kirigami.InlineMessage {
-            visible: finishBackendSetupMessage.visible && Tools.getAirPodsModel() == "unknown" && cfg.titleCheck && !cfg.titleCheckText
+            visible: {
+                Tools.updateBatteryStatus(cfg.otherScript ? cfg.outPutFile : cfg.widgetScript ? "../../airstatus.out" : "", cfg.optimizerOptions ? cfg.refRawValue : "-1");
+                return finishBackendSetupMessage.visible && Tools.getAirPodsModel() == "unknown" && cfg.titleCheck && !cfg.titleCheckText && !wait.visible
+            }
             anchors.left: root.left
             anchors.right: root.right
             text: i18n( "<b>Why is the title unknown?</b><br>"
-                   +    "The AirStatus backend script can distinguish between &quot;AirPods1&quot;, &quot;AirPods2&quot;, &quot;AirPods3&quot;, and &quot;AirPodsPro&quot;. "
-                   +    "If your AirPods are AirPodsPro2, AirPods4, or a newer model, the script might not recognize the specific model. However, the battery values are displayed correctly.<br>"
+                   +    "The AirStatus backend script can distinguish between &quot;AirPods1&quot;, &quot;AirPods2&quot;, &quot;AirPods3&quot;, &quot;AirPodsPro&quot; and &quot;AirPodsPro2&quot;. "
+                   +    "If your AirPods are AirPodsPro3, AirPods4, or a newer model, the script might not recognize the specific model. However, the battery values are displayed correctly.<br>"
                    +    "You can manually change the title using the custom option in the Appearance category. "
                    +    "Additionally, you can modify the default icon for unknown devices in the Icons category.")
             font.pixelSize: 10
