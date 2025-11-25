@@ -1,9 +1,12 @@
 import QtQuick 2.15
-import QtQuick.Layouts
 import QtQuick.Controls 2.15
+import QtQuick.Layouts
+
+
+import Qt.labs.folderlistmodel 2.1
+
 import org.kde.kirigami 2.15 as Kirigami
 import org.kde.plasma.components as PC3
-
 import org.kde.plasma.plasmoid 2.0
 
 import "../../tools/Tools.js"       as Tools
@@ -30,6 +33,12 @@ Kirigami.ScrollablePage {
             Kirigami.FormData.label: i18n("Widget Setup Instructions")
         }
 
+        // FolderListModel for env
+        FolderListModel {
+            id: envModel
+            folder: Qt.resolvedUrl("../../../../../../../../.config/plasma-workspace/env")
+        }
+
         // Error message for environment configuration
         Kirigami.InlineMessage {
             visible: !Tools.isEnvSet()
@@ -37,16 +46,53 @@ Kirigami.ScrollablePage {
             anchors.right: root.right
             text: i18n( "You need to configure the environment to enable QML to read files:"
                     +   "<ol>"
-                    +   "<li>Navigate to the folder: <b>~/.config/plasma-workspace/env/</b></li>"
-                    +   "<li>If the file <b>set-env.sh</b> does not exist, create it.</li>"
-                    +   "<li>Add the following line to the file: <b>'export QML_XHR_ALLOW_FILE_READ=1'</b> .</li>"
+                    +   (!String(envModel.parentFolder).includes("/.config") ?
+                        ("<li>Open the <b>~/.config</b> folder.</li>"
+                    +   "<li>Create a new folder named <b>plasma-workspace</b> inside <b>~/.config</b>.</li>"
+                    +   "<li>Create a new folder named <b>env</b> inside <b>~/.config/plasma-workspace</b>.</li>") :
+                        ("<li>Open the <b>env</b> folder:<br>"
+                    +   "<b>~/.config/plasma-workspace/env</b></li>"))
+                    +   "<li>Open the widget source folder:<br>"
+                    +   "<b>~/.local/share/plasma/plasmoids/airpods.battery.widget.frontend</b></li>"
+                    +   "<li>Copy the <b>set-env.sh</b> file from the widget <b>source</b> folder into the <b>env</b> folder.</li>"
                     +   "<li>Log out and log back into your current session, or reboot your system.</li>"
-                    +   "</ol>")
+                    +   "</ol>"
+                    +   "<b>Note: If you don't trust the script, review it before proceeding.</b>")
             type: Kirigami.MessageType.Error
             font.pixelSize: 13
             actions: [
+                // Button to review the backend script
                 Kirigami.Action {
-                    text: qsTr("Open folder")
+                    text: qsTr("Review script")
+                    icon.name: "document-edit"
+                    onTriggered: {
+                        var scriptPath = Qt.resolvedUrl("../../../set-env.sh")
+                        Qt.openUrlExternally(scriptPath)
+                    }
+                },
+                // Button to open source folder
+                Kirigami.Action {
+                    text: qsTr("Open source folder")
+                    icon.name: "document-open-folder"
+                    onTriggered: {
+                        var scriptPath = Qt.resolvedUrl("../../../")
+                        Qt.openUrlExternally(scriptPath)
+                    }
+                },
+                // Button to ~/.config folder
+                Kirigami.Action {
+                    visible: !String(envModel.parentFolder).includes("/.config")
+                    text: qsTr("Open ~/.config")
+                    icon.name: "document-open-folder"
+                    onTriggered: {
+                        var scriptPath = Qt.resolvedUrl("../../../../../../../../.config/")
+                        Qt.openUrlExternally(scriptPath)
+                    }
+                },
+                // Button to open env folder
+                Kirigami.Action {
+                    visible: String(envModel.parentFolder).includes("/.config")
+                    text: qsTr("Open env folder")
                     icon.name: "document-open-folder"
                     onTriggered: {
                         var folderPath = Qt.resolvedUrl("../../../../../../../../.config/plasma-workspace/env/")
