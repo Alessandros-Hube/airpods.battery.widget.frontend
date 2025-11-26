@@ -1,0 +1,2 @@
+
+export QML_XHR_ALLOW_FILE_READ=1

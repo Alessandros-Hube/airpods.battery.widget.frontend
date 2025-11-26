@@ -1,54 +1,44 @@
-from bleak import discover
+from bleak import BleakScanner
 from asyncio import new_event_loop, set_event_loop, get_event_loop
-from time import sleep, time_ns
 from binascii import hexlify
 from json import dumps
 from sys import argv
 from datetime import datetime
 
 # Configure update duration (update after n seconds)
-UPDATE_DURATION = 1
 MIN_RSSI = -60
 AIRPODS_MANUFACTURER = 76
 AIRPODS_DATA_LENGTH = 54
-RECENT_BEACONS_MAX_T_NS = 10000000000  # 10 Seconds
-
-recent_beacons = []
 
 
-def get_best_result(device):
-    recent_beacons.append({
-        "time": time_ns(),
-        "device": device
-    })
-    strongest_beacon = None
-    i = 0
-    while i < len(recent_beacons):
-        if(time_ns() - recent_beacons[i]["time"] > RECENT_BEACONS_MAX_T_NS):
-            recent_beacons.pop(i)
-            continue
-        if (strongest_beacon == None or strongest_beacon.rssi < recent_beacons[i]["device"].rssi):
-            strongest_beacon = recent_beacons[i]["device"]
-        i += 1
+def airpods_filter(device, adv):
+    # Check RSSI
+    if adv.rssi is None or adv.rssi < MIN_RSSI:
+        return False
 
-    if (strongest_beacon != None and strongest_beacon.address == device.address):
-        strongest_beacon = device
+    # Check ManufacturerData
+    man = adv.manufacturer_data
+    if AIRPODS_MANUFACTURER not in man:
+        return False
 
-    return strongest_beacon
+    return True
 
 
 # Getting data with hex format
 async def get_device():
     # Scanning for devices
-    devices = await discover()
-    for d in devices:
-        # Checking for AirPods
-        d = get_best_result(d)
-        if d.rssi >= MIN_RSSI and AIRPODS_MANUFACTURER in d.metadata['manufacturer_data']:
-            data_hex = hexlify(bytearray(d.metadata['manufacturer_data'][AIRPODS_MANUFACTURER]))
-            data_length = len(hexlify(bytearray(d.metadata['manufacturer_data'][AIRPODS_MANUFACTURER])))
-            if data_length == AIRPODS_DATA_LENGTH:
-                return data_hex
+    device = await BleakScanner.find_device_by_filter(airpods_filter, timeout=10)
+
+    if device is None:
+        return False
+
+    data_hex = hexlify(
+        bytearray(device.details["props"]["ManufacturerData"][AIRPODS_MANUFACTURER])
+    )
+
+    if len(data_hex) == AIRPODS_DATA_LENGTH:
+        return data_hex
+
     return False
 
 
@@ -63,7 +53,6 @@ def get_data_hex():
 
 
 # Getting data from hex string and converting it to dict(json)
-# Getting data from hex string and converting it to dict(json)
 def get_data():
     raw = get_data_hex()
 
@@ -74,53 +63,55 @@ def get_data():
     flip: bool = is_flipped(raw)
 
     # On 7th position we can get AirPods model, gen1, gen2, Pro or Max
-    if chr(raw[7]) == 'e':
+    if chr(raw[7]) == "e":
         model = "AirPodsPro"
-    elif chr(raw[7]) == '4':
+    elif chr(raw[7]) == "4":
         model = "AirPodsPro2"
-    elif chr(raw[7]) == '3':
+    elif chr(raw[7]) == "3":
         model = "AirPods3"
-    elif chr(raw[7]) == 'f':
+    elif chr(raw[7]) == "f":
         model = "AirPods2"
-    elif chr(raw[7]) == '2':
+    elif chr(raw[7]) == "2":
         model = "AirPods1"
-    elif chr(raw[7]) == 'a':
+    elif chr(raw[7]) == "a":
         model = "AirPodsMax"
     else:
         model = "unknown"
 
     # Checking left AirPod for availability and storing charge in variable
     status_tmp = int("" + chr(raw[12 if flip else 13]), 16)
-    left_status = (100 if status_tmp == 10 else (status_tmp * 10 + 5 if status_tmp <= 10 else -1))
+    left_status = (
+        100 if status_tmp == 10 else (status_tmp * 10 + 5 if status_tmp <= 10 else -1)
+    )
 
     # Checking right AirPod for availability and storing charge in variable
     status_tmp = int("" + chr(raw[13 if flip else 12]), 16)
-    right_status = (100 if status_tmp == 10 else (status_tmp * 10 + 5 if status_tmp <= 10 else -1))
+    right_status = (
+        100 if status_tmp == 10 else (status_tmp * 10 + 5 if status_tmp <= 10 else -1)
+    )
 
     # Checking AirPods case for availability and storing charge in variable
     status_tmp = int("" + chr(raw[15]), 16)
-    case_status = (100 if status_tmp == 10 else (status_tmp * 10 + 5 if status_tmp <= 10 else -1))
+    case_status = (
+        100 if status_tmp == 10 else (status_tmp * 10 + 5 if status_tmp <= 10 else -1)
+    )
 
     # On 14th position we can get charge status of AirPods
     charging_status = int("" + chr(raw[14]), 16)
-    charging_left:bool = (charging_status & (0b00000010 if flip else 0b00000001)) != 0
-    charging_right:bool = (charging_status & (0b00000001 if flip else 0b00000010)) != 0
-    charging_case:bool = (charging_status & 0b00000100) != 0
+    charging_left: bool = (charging_status & (0b00000010 if flip else 0b00000001)) != 0
+    charging_right: bool = (charging_status & (0b00000001 if flip else 0b00000010)) != 0
+    charging_case: bool = (charging_status & 0b00000100) != 0
 
     # Return result info in dict format
     return dict(
         status=1,
-        charge=dict(
-            left=left_status,
-            right=right_status,
-            case=case_status
-        ),
+        charge=dict(left=left_status, right=right_status, case=case_status),
         charging_left=charging_left,
         charging_right=charging_right,
         charging_case=charging_case,
         model=model,
-        date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        raw=raw.decode("utf-8")
+        date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        raw=raw.decode("utf-8"),
     )
 
 
@@ -132,20 +123,17 @@ def is_flipped(raw):
 def run():
     output_file = argv[-1]
 
-    #while True:
     data = get_data()
 
     if data["status"] == 1:
         json_data = dumps(data)
         if len(argv) > 1:
             f = open(output_file, "a")
-            f.write(json_data+"\n")
+            f.write(json_data + "\n")
             f.close()
         else:
             print(json_data)
 
-        #sleep(UPDATE_DURATION)
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()
