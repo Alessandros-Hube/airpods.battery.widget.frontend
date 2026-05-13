@@ -776,7 +776,7 @@ PlasmoidItem {
     Component {
         id: notificationComponent
         Notification {
-            componentName: Tools.existsNotifyrc() ? "airPodsBatteryWidget" : "plasma_workspace"
+            componentName: "airPodsBatteryWidget"
             eventId: "notification"
             autoDelete: true
         }
