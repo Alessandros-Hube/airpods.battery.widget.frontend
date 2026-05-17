@@ -4,7 +4,6 @@ import QtQuick.Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami 2.15 as Kirigami
 import org.kde.plasma.components 3.0 as PC3
-import Qt.labs.settings 1.0 
 
 Kirigami.ScrollablePage {
 
@@ -53,7 +52,7 @@ Kirigami.ScrollablePage {
                     comboBoxSettingsDefaultIconSelect.lastSelectedIndex = currentIndex;
                 }
             }
-            Settings {
+            Item {
                 id: comboBoxSettingsDefaultIconSelect
                 property int lastSelectedIndex: 0
             }
@@ -71,7 +70,7 @@ Kirigami.ScrollablePage {
                     comboBoxSettings.lastSelectedIndex = currentIndex;
                 }
             }
-            Settings {
+            Item {
                 id: comboBoxSettings
                 property int lastSelectedIndex: 0
             }
