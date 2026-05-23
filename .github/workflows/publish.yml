@@ -47,10 +47,7 @@ jobs:
 
       - name: Package plasmoid
         run: |
-          mkdir -p "$DESTDIR"
-          cp -r . "$DESTDIR/airpods.battery.widget.frontend"
-          cd "$DESTDIR"
-          tar -czf airpods.battery.widget.frontend.tar.gz airpods.battery.widget.frontend
+          tar -czf airpods.battery.widget.frontend.tar.gz .
 
       - uses: actions/upload-artifact@v4
         with:
