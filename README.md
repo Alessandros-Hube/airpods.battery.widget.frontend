@@ -1,5 +1,7 @@
 # AirPods Battery Widget Frontend for Plasma
 
+[![Store version](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Fapi.opendesktop.org%2Focs%2Fv1%2Fcontent%2Fdata%2F2229122&query=%2Focs%2Fdata%2Fcontent%2Fversion%2Ftext()&color=1f425f&labelColor=2d333b&logo=kde&label=KDE%20Store)](https://store.kde.org/p/2229122)
+
 This project is a fully customizable Plasma widget designed to display the battery status of AirPods in the KDE Plasma environment. The widget allows you to configure various aspects, such as the font size, font color, icon size and visibility of different components.
 
 # Features
