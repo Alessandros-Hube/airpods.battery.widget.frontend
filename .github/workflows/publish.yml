@@ -47,12 +47,16 @@ jobs:
 
       - name: Package plasmoid
         run: |
-          tar -czf airpods.battery.widget.frontend.tar.gz .
+          DESTDIR="$(pwd)/../artifacts"   # absolute path outside the repo
+          mkdir -p "$DESTDIR"
+          cp -r . "$DESTDIR/airpods.battery.widget.frontend"
+          cd "$DESTDIR"
+          tar -czf airpods.battery.widget.frontend.tar.gz airpods.battery.widget.frontend
 
       - uses: actions/upload-artifact@v4
         with:
           name: plasmoid
-          path: artifacts/airpods.battery.widget.frontend.tar.gz
+          path: ../artifacts/airpods.battery.widget.frontend.tar.gz
 
       - name: Check if tag exists
         id: tag_check
@@ -79,7 +83,7 @@ jobs:
           prerelease: false
           make_latest: true
           files: |
-            artifacts/airpods.battery.widget.frontend.tar.gz
+            ../artifacts/airpods.battery.widget.frontend.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -92,6 +96,6 @@ jobs:
           prerelease: true
           make_latest: false
           files: |
-            artifacts/airpods.battery.widget.frontend.tar.gz
+            ../artifacts/airpods.battery.widget.frontend.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
