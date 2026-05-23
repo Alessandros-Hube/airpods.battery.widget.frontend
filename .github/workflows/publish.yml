@@ -42,7 +42,7 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          VERSION=$(jq -r '.KPlugin // .Version // .version' metadata.json)
+          VERSION=$(jq -r '.KPlugin.Version' metadata.json)
           echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Package plasmoid
