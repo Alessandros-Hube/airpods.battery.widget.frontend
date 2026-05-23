@@ -34,21 +34,21 @@ jobs:
 
       - name: Validate plasmoid structure
         run: |
-          test -f plasmoid/metadata.json
-          test -f plasmoid/contents/ui/main.qml
-          jq . plasmoid/metadata.json
-          find plasmoid -name "*.qml" -type f
+          test -f metadata.json
+          test -f contents/ui/main.qml
+          jq . metadata.json
+          find . -name "*.qml" -type f
 
       - name: Extract version
         id: version
         run: |
-          VERSION=$(jq -r '.KPackageStructure // .Version // .version' plasmoid/metadata.json)
+          VERSION=$(jq -r '.KPackageStructure // .Version // .version' metadata.json)
           echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Package plasmoid
         run: |
           mkdir -p "$DESTDIR"
-          cp -r plasmoid "$DESTDIR/airpods.battery.widget.frontend"
+          cp -r . "$DESTDIR/airpods.battery.widget.frontend"
           cd "$DESTDIR"
           tar -czf airpods.battery.widget.frontend.tar.gz airpods.battery.widget.frontend
 
