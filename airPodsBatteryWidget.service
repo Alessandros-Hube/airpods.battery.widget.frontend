@@ -1,0 +1,15 @@
+[Unit]
+Description=AirPods Battery Widget Service
+After=graphical-session.target bluetooth.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/plasma/plasmoids/airpods.battery.widget.frontend/runBackend.sh
+Restart=on-failure
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical-session.target

@@ -5,6 +5,7 @@ import org.kde.bluezqt 1.0 as BluezQt
 import org.kde.kirigami 2.20 as Kirigami
 import org.kde.notification 1.0
 import org.kde.plasma.plasmoid 2.0
+import org.kde.plasma.workspace.dbus as DBus
 
 import "../tools/Tools.js"       as Tools
 
@@ -25,7 +26,9 @@ PlasmoidItem {
     property string caseIconPath:       iconBasePath + "/airpods-case.png"
 
     property bool isWidgetInit: false
-    
+    property bool isError: false
+    property int  count: 0
+    property bool waitLongerForVenv: true
     property bool isWidgetVisible: false
 
     property bool sendFirstAirPodsNotification: false
@@ -45,6 +48,7 @@ PlasmoidItem {
     property var rightPodNotification: null
     property var caseNotification: null
 
+    property int    status:         -1
     property int    leftBat:        -1
     property int    rightBat:       -1
     property int    averageBat:     -1
@@ -52,10 +56,14 @@ PlasmoidItem {
     property bool   chargingLeft:   false
     property bool   chargingRight:  false
     property bool   chargingCase:   false
+    property string latestModel:    "unknown"
     property string model:          "unknown"
     property var lastUpdate:     new Date(2000, 0, 1, 0, 0, 0)
     property var lastUpdateCase: new Date(2000, 0, 1, 0, 0, 0)
     property string raw:            "-"
+
+    property bool infoPage: plasmoid.configuration.infoPage;
+    property bool finishBackendSetup: plasmoid.configuration.finishBackendSetup
 
     switchWidth: Kirigami.Units.gridUnit * 12
     switchHeight: Kirigami.Units.gridUnit * 12
@@ -64,15 +72,94 @@ PlasmoidItem {
     toolTipMainText: "AirPods Battery Widget"
     toolTipSubText: updateToolTip()
 
+    // Function to fetch the airpods battery data form DBus 
+    function fetchBattery() {
+        const reply = DBus.SessionBus.asyncCall({
+            "service":    "airpods.battery.widget.frontend",
+            "path":       "/airpods/battery/widget/frontend",
+            "iface":      "airpods.battery.widget.frontend",
+            "member":     "GetBattery",
+            "signature":  "",
+            "arguments":  []
+        })
+        reply.finished.connect(() => {
+            if (reply.isError) {
+                isError = plasmoid.configuration.isError = waitLongerForVenv ? count > 60 : count > 10;
+                count = count + 1;
+                console.warn("Airpods Battery Widget DBus error:", reply.error.message);
+            } else {
+                isError = plasmoid.configuration.isError = waitLongerForVenv = false;
+                count = 0;
+                parseData(reply.value);
+                // Debug log
+                // console.log("Airpods Battery Widget DBus response:", JSON.stringify(reply.value));
+            }
+            reply.destroy();
+        })
+    }
+
+    // Function to parseData
+    function parseData(v) {
+        if (v && v.status == 1 && v.model != "AirPodsMax") {
+            plasmoid.configuration.jsonData = JSON.stringify(v);
+            if (cfg.isCheckBoxCheck) {
+                if (root.raw != "-" && root.raw != cfg.refRaw) {
+                    v = JSON.parse(plasmoid.configuration.refData);
+                } else {
+                    var raw = v.raw.value.substring(0, 8);
+                    if (raw != cfg.refRaw) {
+                        return;
+                    }
+                }
+            }
+            root.status         = v.status.value
+            latestModel         = root.model != v.model.value ? root.model : v.model.value
+            root.model          = v.model.value
+            root.leftBat        = v.left.value
+            root.rightBat       = v.right.value
+            root.averageBat     = Math.round((root.leftBat + root.rightBat) / 2)
+            root.caseBat        = v.case.value != -1 ? v.case.value : latestModel == root.model ? root.caseBat : -1
+            root.chargingLeft   = v.charging_left.value == "True"
+            root.chargingRight  = v.charging_right.value == "True"
+            root.chargingCase   = v.charging_case.value == "True"
+            root.raw            = v.raw.value.substring(0, 8)
+            root.lastUpdate     = new Date(v.date.value)
+            root.lastUpdateCase = v.case.value != -1 ? new Date(v.date.value) : latestModel == root.model ? root.lastUpdateCase : new Date(2000, 0, 1, 0, 0, 0)
+        }
+        plasmoid.configuration.status = plasmoid.configuration.status == 1 ? 1 : v.status.value;
+    }
+
+    // Function to run backend
+    function runBackend() {
+        isWidgetInit = finishBackendSetup && !isError;
+        if (isWidgetInit || isError) {
+            fetchBattery();
+        }
+        updateWidget();
+    }
+
+    // Function to run the old backend
+    function runOldBackend() {
+        isWidgetInit = (Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))
+        if (isWidgetInit) {
+            Tools.updateBatteryStatus(cfg.otherScript ? cfg.outPutFile : cfg.widgetScript ? "../../airstatus.out" : "", cfg.optimizerOptions ? cfg.refRawValue : "-1");
+            root.status = 1;
+            loadData();
+        }
+        updateWidget();
+    }
+
     // Function to update the widget
     function updateWidget() {
-        updateNotificationManager();
+        updateIcons();
         updateCompact();
         updateFull();
+        updateNotificationManager();
     }
 
     // Function to load AirPods data
     function loadData() {
+        latestModel         = root.model != Tools.getAirPodsModel() ? root.model : Tools.getAirPodsModel()
         root.model          = Tools.getAirPodsModel();
         root.averageBat     = Tools.getAverageCharge();
         root.leftBat        = Tools.getLeftCharge();
@@ -88,6 +175,29 @@ PlasmoidItem {
     // Function to manages and handles notification logic for AirPods battery alerts
     function updateNotificationManager() {
         if (cfg.allowNotification && isWidgetVisible) {
+            if (latestModel != root.model) {
+                if (airpodsNotification) {
+                    airpodsNotification.destroy();
+                    airpodsNotification = null;
+                    sendFirstAirPodsNotification = sendSecondAirPodsNotification = false;
+                }
+                if (leftPodNotification) {
+                    leftPodNotification.destroy();
+                    leftPodNotification = null;
+                    sendFirstLeftPodNotification = sendSecondLeftPodNotification = false;
+                }
+                if (rightPodNotification) {
+                    rightPodNotification.destroy();
+                    rightPodNotification = null;
+                    sendFirstRightPodNotification = sendSecondRightPodNotification = false;
+                }
+                if (caseNotification) {
+                    caseNotification.destroy();
+                    caseNotification = null;
+                    sendFirstCaseNotification = sendSecondCaseNotification = false;
+                }
+            }
+
             if ((Math.abs(root.leftBat - root.rightBat) > 10)) {
                 if (airpodsNotification) {
                     airpodsNotification.destroy();
@@ -286,7 +396,7 @@ PlasmoidItem {
         }
 
         // Function to update the compact representation 
-        function updateCompactRepresentation(){
+        function updateCompactRepresentation() {
             if(!editModeView.visible){
                 updateChargeTextCompRep(averageCharge, root.averageBat);
                 updateChargeTextCompRep(leftCharge, root.leftBat);
@@ -296,7 +406,7 @@ PlasmoidItem {
                 averageView.visible = averageViewValue;
                 detailedView.visible = !averageViewValue;
 
-                if ((cfg.showCaseBattery && root.caseBat != -1) || (cfg.autoHiddenCaseBattery && !isLastUpdateOlderThanThreshold(root.lastUpdateCase, cfg.customTimeThreshold2))) {
+                if ((cfg.showCaseBattery && root.caseBat != -1 && latestModel == root.model) || (cfg.autoHiddenCaseBattery && !isLastUpdateOlderThanThreshold(root.lastUpdateCase, cfg.customTimeThreshold2))) {
                     if (averageViewValue) {
                         updateChargeTextCompRep(caseCharge, root.caseBat);
                         caseChargeLayout.visible = true;
@@ -315,12 +425,16 @@ PlasmoidItem {
                 }
 
                 toolTipSubText = updateToolTip();
-                updateIcons();
 
                 displayingView.visible = isWidgetVisible = !((!btManager.bluetoothOperational && cfg.hiddenWidgetBt) || (isLastUpdateOlderThanThreshold(root.lastUpdate, cfg.customTimeThreshold) && cfg.hiddenWidgetLastUpdate));
 
                 if (!displayingView.visible) {
                     compactRep.Layout.minimumWidth = 4;
+                }
+
+                if (setupView.visible) {
+                    compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 2;
+                    displayingView.visible = false;
                 }
             }
         }
@@ -371,7 +485,7 @@ PlasmoidItem {
                     }
                 }
                 Text {
-                    text: "Setup"
+                    text: !infoPage ? isError ? "Error" : "Setup" : !Tools.isEnvSet() ? "Setup" : "New"
                     visible: true
                     font.pixelSize: 14
                     font.bold: true
@@ -600,7 +714,7 @@ PlasmoidItem {
                 updateChargeTextCompFull(caseChargeText, caseChargeRaw);
                 renderAirpodCircle(circleCanvas3, caseChargeRaw, caseIconPath, isCaseCharging, cfg.iconWidthCaseFullRep, cfg.iconHeightCaseFullRep);
             } else if (cfg.showAvailableCaseBatteryFullRep || (cfg.autoHiddenCaseBatteryFullRep && !isLastUpdateOlderThanThreshold(root.lastUpdateCase, cfg.customTimeThreshold3))) {
-                if (caseChargeRaw != -1) {
+                if (caseChargeRaw != -1 && latestModel == root.model) {
                     caseView.visible = true;
                     fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 20
                     updateChargeTextCompFull(caseChargeText, caseChargeRaw);
@@ -620,10 +734,9 @@ PlasmoidItem {
             }
 
             // Update last update text
-            lastUpdated.text = "Last updated: " + Qt.locale().toString(root.lastUpdate, cfg.customDateFormat);
+            lastUpdated.text = "Last updated: " + (root.status == 1 ? Qt.locale().toString(root.lastUpdate, cfg.customDateFormat) : "")
 
             toolTipSubText = updateToolTip();
-            updateIcons();
         }
 
         Connections {
@@ -640,10 +753,18 @@ PlasmoidItem {
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 text: {
-                    if (!Tools.isEnvSet()) {
-                        return "Please open the Widget setting <br> and follow setup instruction."
+                    if (infoPage && Tools.isEnvSet()) {
+                        return "New backend option available. <br> Please open the Widget settings.";
+                    } else if (!infoPage) {
+                        if (!Tools.isEnvSet()) { 
+                            return "Please open the Widget settings <br> and follow setup instruction.";
+                        } else {
+                            return "Please open the Widget settings <br> and follow setup instruction.<br><br> Step 1 of 2 done."
+                        }
+                    } else if (isError) {
+                        return "The backend has an error. <br><br> Please open the Widget settings <br> and follow instructions."
                     } else {
-                        return "Please open the Widget setting <br> and follow setup instruction.<br><br> Step 1 of 2 done."
+                        return "Please open the Widget settings <br> and follow setup instruction.";
                     }
                 }
                 font.pixelSize: 15
@@ -746,7 +867,7 @@ PlasmoidItem {
                 visible: cfg.lastUpdateTextCheck
                 Text {
                     id: lastUpdated
-                    text: "Last updated: " + Qt.locale().toString(root.lastUpdate, cfg.customDateFormat)
+                    text: "Last updated: " + (root.status == 1 ? Qt.locale().toString(root.lastUpdate, cfg.customDateFormat) : "")
                     verticalAlignment: Text.AlignVCenter
                     font.pixelSize: cfg.fontSizeFullRepLU
                     font.bold: cfg.boldFullRepLU
@@ -763,10 +884,14 @@ PlasmoidItem {
         running: true
         repeat: true
         onTriggered: {
-           isWidgetInit = (Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))
-            if (isWidgetInit) {
-                Tools.updateBatteryStatus(cfg.otherScript ? cfg.outPutFile : cfg.widgetScript ? "../../airstatus.out" : "", cfg.optimizerOptions ? cfg.refRawValue : "-1");    
-                loadData();
+            if (finishBackendSetup) {
+                runBackend();
+            } else if (!infoPage && !finishBackendSetup) {
+                runOldBackend();
+            } else {
+                isWidgetInit = false;
+                isError = false;
+                waitLongerForVenv = true;
                 updateWidget();
             }
         }
@@ -784,12 +909,30 @@ PlasmoidItem {
 
     // Initial battery status update when the widget is loaded
     Component.onCompleted: {
-        isWidgetInit = (Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))
-        if (isWidgetInit) {
-            Tools.updateBatteryStatus(cfg.otherScript ? cfg.outPutFile : cfg.widgetScript ? "../../airstatus.out" : "", cfg.optimizerOptions ? cfg.refRawValue : "-1");
-            loadData();
-            updateWidget();
+        updateWidget();
+        if (Tools.isEnvSet()) {
+            plasmoid.configuration.finishBackendSetup = finishBackendSetup = false;
         }
-        updateIcons();
+
+        if (finishBackendSetup) {
+            runBackend();
+        } else if (!infoPage && !finishBackendSetup) {
+            runOldBackend();
+        } else {
+            isWidgetInit = false;
+            isError = false;
+        }
+        plasmoid.configuration.isError = isError;
+        plasmoid.configuration.status = root.status;
+        plasmoid.configuration.jsonData = JSON.stringify({'status': 0});
+        var refData = JSON.parse(plasmoid.configuration.refData);
+        refData.left.value = "---";
+        refData.right.value = "---";
+        refData.case.value = "---";
+        refData.charging_left = false;
+        refData.charging_right = false;
+        refData.charging_case = false;
+        refData.date.value = "";
+        plasmoid.configuration.refData = JSON.stringify(refData);
     }
 }
