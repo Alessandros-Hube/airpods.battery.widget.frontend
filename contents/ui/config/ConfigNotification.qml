@@ -9,8 +9,6 @@ import org.kde.notification 1.0
 import org.kde.plasma.components as PC3
 import org.kde.plasma.plasmoid 2.0
 
-import "../../tools/Tools.js"       as Tools
-
 Kirigami.ScrollablePage {
     readonly property var cfg: plasmoid.configuration
 
@@ -71,14 +69,6 @@ Kirigami.ScrollablePage {
 
     Kirigami.FormLayout {
         id: root
-
-        // Separator to organize sections within the form
-        Kirigami.Separator {
-            anchors.left: root.left
-            anchors.right: root.right
-            Kirigami.FormData.isSection: true
-            Kirigami.FormData.label: i18n("Widget Notification")
-        }
    
         // Card container for settings
         Kirigami.AbstractCard {
@@ -110,65 +100,6 @@ Kirigami.ScrollablePage {
                     }
                 }
             }
-        }
-
-        // FolderListModel for knotifications6
-        FolderListModel {
-            id: knotificationsModel
-            folder: Qt.resolvedUrl("../../../../../../knotifications6/")
-        }
-
-        // Warning message for optional notification configuration
-        Kirigami.InlineMessage {
-            id: widgetScriptMessage
-            visible: allowNotification.checked && !Tools.existsNotifyrc()
-            anchors.left: root.left
-            anchors.right: root.right
-            text: i18n( "The widget uses the Plasma Workspace for the notification frame. "
-                    +   "Change the notification frame to the individual widget notification frame for a better look and feel, and to access individual notification settings for this widget in the System Settings menu."
-                    +   "<ol>"
-                    +   (!String(knotificationsModel.parentFolder).includes("/.local/share") ?
-                        ("<li>Open the <b>~/.local/share/</b> folder.</li>"
-                    +   "<li>Create a new folder named <b>knotifications6</b> inside <b>~/.local/share/</b>.</li>") :
-                        ("<li>Open the existing <b>knotifications6</b> folder:<br>"
-                    +   "<b>~/.local/share/knotifications6</b></li>"))
-                    +   "<li>Open the widget source folder:<br>"
-                    +   "<b>~/.local/share/plasma/plasmoids/airpods.battery.widget.frontend</b></li>"
-                    +   "<li>Copy the <b>airPodsBatteryWidget.notifyrc</b> file from the widget source folder into the <b>knotifications6</b> folder.</li>"
-                    +   "</ol>")
-            font.pixelSize: 13
-            type: Kirigami.MessageType.Warning
-            actions: [
-                // Button to open knotifications6 folder
-                Kirigami.Action {
-                    visible: String(knotificationsModel.parentFolder).includes("/.local/share")
-                    text: qsTr("Open knotifications6")
-                    icon.name: "document-open-folder"
-                    onTriggered: {
-                        var scriptPath = Qt.resolvedUrl("../../../../../../knotifications6")
-                        Qt.openUrlExternally(scriptPath)
-                    }
-                },
-                // Button to ~/.local/share folder
-                Kirigami.Action {
-                    visible: !String(knotificationsModel.parentFolder).includes("/.local/share")
-                    text: qsTr("Open ~/.local/share")
-                    icon.name: "document-open-folder"
-                    onTriggered: {
-                        var scriptPath = Qt.resolvedUrl("../../../../../../")
-                        Qt.openUrlExternally(scriptPath)
-                    }
-                },
-                // Button to open folder widget folder
-                Kirigami.Action {
-                    text: qsTr("Open source folder")
-                    icon.name: "document-open-folder"
-                    onTriggered: {
-                        var scriptPath = Qt.resolvedUrl("../../../")
-                        Qt.openUrlExternally(scriptPath)
-                    }
-                }
-            ]
         }
     
         Kirigami.ScrollablePage {
@@ -640,7 +571,7 @@ Kirigami.ScrollablePage {
             Component {
                 id: notificationComponent
                 Notification {
-                    componentName: Tools.existsNotifyrc() ? "airPodsBatteryWidget" : "plasma_workspace"
+                    componentName: "airPodsBatteryWidget"
                     eventId: "notification"
                     autoDelete: true
                 }
