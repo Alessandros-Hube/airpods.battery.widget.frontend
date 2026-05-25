@@ -18,6 +18,7 @@
         "Version": "1.2.0",
         "Website": "https://github.com/Alessandros-Hube/airpods.battery.widget.frontend"
     },
+    "KPackageStructure": "Plasma/Applet",
     "X-Plasma-API-Minimum-Version": "6.0",
     "X-Plasma-MainScript": "ui/main.qml"
 }
