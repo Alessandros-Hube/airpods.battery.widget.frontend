@@ -2,6 +2,33 @@
 <kcfg>
   <kcfgfile name=""/>
   <group name="General">
+    <entry name="infoPage" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="oldSetup" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="finishBackendSetup" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="isError" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="status" type="Int">
+      <default>-1</default>
+    </entry>
+    <entry name="jsonData" type="string">
+      <default>{'status': 0}</default>
+    </entry>
+    <entry name="refData" type="string">
+      <default>{'status': 0}</default>
+    </entry>
+    <entry name="refRaw" type="string">
+      <default></default>
+    </entry>
+    <entry name="isCheckBoxCheck" type="Bool">
+      <default>false</default>
+    </entry>
     <entry name="widgetScript" type="Bool">
       <default>false</default>
     </entry>

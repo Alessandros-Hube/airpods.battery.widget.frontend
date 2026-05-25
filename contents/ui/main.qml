@@ -5,11 +5,16 @@ import org.kde.bluezqt 1.0 as BluezQt
 import org.kde.kirigami 2.20 as Kirigami
 import org.kde.notification 1.0
 import org.kde.plasma.plasmoid 2.0
+import org.kde.plasma.workspace.dbus as DBus
 
 import "../tools/Tools.js"       as Tools
 
 PlasmoidItem {
     id: root
+
+    signal updateCompact();
+    signal updateFull();
+
     property QtObject btManager: BluezQt.Manager
     readonly property var cfg: plasmoid.configuration
 
@@ -20,6 +25,10 @@ PlasmoidItem {
     property string rightIconPath:      iconBasePath + "/airpod-right.png"
     property string caseIconPath:       iconBasePath + "/airpods-case.png"
 
+    property bool isWidgetInit: false
+    property bool isError: false
+    property int  count: 0
+    property bool waitLongerForVenv: true
     property bool isWidgetVisible: false
 
     property bool sendFirstAirPodsNotification: false
@@ -34,10 +43,27 @@ PlasmoidItem {
     property bool sendFirstCaseNotification: false
     property bool sendSecondCaseNotification: false
 
-    property var airpodsNotification: None
-    property var leftPodNotification: None
-    property var rightPodNotification: None
-    property var caseNotification: None
+    property var airpodsNotification: null
+    property var leftPodNotification: null
+    property var rightPodNotification: null
+    property var caseNotification: null
+
+    property int    status:         -1
+    property int    leftBat:        -1
+    property int    rightBat:       -1
+    property int    averageBat:     -1
+    property int    caseBat:        -1
+    property bool   chargingLeft:   false
+    property bool   chargingRight:  false
+    property bool   chargingCase:   false
+    property string latestModel:    "unknown"
+    property string model:          "unknown"
+    property var lastUpdate:     new Date(2000, 0, 1, 0, 0, 0)
+    property var lastUpdateCase: new Date(2000, 0, 1, 0, 0, 0)
+    property string raw:            "-"
+
+    property bool infoPage: plasmoid.configuration.infoPage;
+    property bool finishBackendSetup: plasmoid.configuration.finishBackendSetup
 
     switchWidth: Kirigami.Units.gridUnit * 12
     switchHeight: Kirigami.Units.gridUnit * 12
@@ -45,6 +71,198 @@ PlasmoidItem {
     // Tooltip text for the widget
     toolTipMainText: "AirPods Battery Widget"
     toolTipSubText: updateToolTip()
+
+    // Function to fetch the airpods battery data form DBus 
+    function fetchBattery() {
+        const reply = DBus.SessionBus.asyncCall({
+            "service":    "airpods.battery.widget.frontend",
+            "path":       "/airpods/battery/widget/frontend",
+            "iface":      "airpods.battery.widget.frontend",
+            "member":     "GetBattery",
+            "signature":  "",
+            "arguments":  []
+        })
+        reply.finished.connect(() => {
+            if (reply.isError) {
+                isError = plasmoid.configuration.isError = waitLongerForVenv ? count > 60 : count > 10;
+                count = count + 1;
+                console.warn("Airpods Battery Widget DBus error:", reply.error.message);
+            } else {
+                isError = plasmoid.configuration.isError = waitLongerForVenv = false;
+                count = 0;
+                parseData(reply.value);
+                // Debug log
+                // console.log("Airpods Battery Widget DBus response:", JSON.stringify(reply.value));
+            }
+            reply.destroy();
+        })
+    }
+
+    // Function to parseData
+    function parseData(v) {
+        if (v && v.status == 1 && v.model != "AirPodsMax") {
+            plasmoid.configuration.jsonData = JSON.stringify(v);
+            if (cfg.isCheckBoxCheck) {
+                if (root.raw != "-" && root.raw != cfg.refRaw) {
+                    v = JSON.parse(plasmoid.configuration.refData);
+                } else {
+                    var raw = v.raw.value.substring(0, 8);
+                    if (raw != cfg.refRaw) {
+                        return;
+                    }
+                }
+            }
+            root.status         = v.status.value
+            latestModel         = root.model != v.model.value ? root.model : v.model.value
+            root.model          = v.model.value
+            root.leftBat        = v.left.value
+            root.rightBat       = v.right.value
+            root.averageBat     = Math.round((root.leftBat + root.rightBat) / 2)
+            root.caseBat        = v.case.value != -1 ? v.case.value : latestModel == root.model ? root.caseBat : -1
+            root.chargingLeft   = v.charging_left.value == "True"
+            root.chargingRight  = v.charging_right.value == "True"
+            root.chargingCase   = v.charging_case.value == "True"
+            root.raw            = v.raw.value.substring(0, 8)
+            root.lastUpdate     = new Date(v.date.value)
+            root.lastUpdateCase = v.case.value != -1 ? new Date(v.date.value) : latestModel == root.model ? root.lastUpdateCase : new Date(2000, 0, 1, 0, 0, 0)
+        }
+        plasmoid.configuration.status = plasmoid.configuration.status == 1 ? 1 : v.status.value;
+    }
+
+    // Function to run backend
+    function runBackend() {
+        isWidgetInit = finishBackendSetup && !isError;
+        if (isWidgetInit || isError) {
+            fetchBattery();
+        }
+        updateWidget();
+    }
+
+    // Function to run the old backend
+    function runOldBackend() {
+        isWidgetInit = (Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))
+        if (isWidgetInit) {
+            Tools.updateBatteryStatus(cfg.otherScript ? cfg.outPutFile : cfg.widgetScript ? "../../airstatus.out" : "", cfg.optimizerOptions ? cfg.refRawValue : "-1");
+            root.status = 1;
+            loadData();
+        }
+        updateWidget();
+    }
+
+    // Function to update the widget
+    function updateWidget() {
+        updateIcons();
+        updateCompact();
+        updateFull();
+        updateNotificationManager();
+    }
+
+    // Function to load AirPods data
+    function loadData() {
+        latestModel         = root.model != Tools.getAirPodsModel() ? root.model : Tools.getAirPodsModel()
+        root.model          = Tools.getAirPodsModel();
+        root.averageBat     = Tools.getAverageCharge();
+        root.leftBat        = Tools.getLeftCharge();
+        root.rightBat       = Tools.getRightCharge();
+        root.caseBat        = Tools.getCaseCharge();
+        root.chargingLeft   = Tools.isChargingLeft();
+        root.chargingRight  = Tools.isChargingRight();
+        root.chargingCase   = Tools.isChargingCase();
+        root.lastUpdate     = new Date(Tools.getLastUpdated());
+        root.lastUpdateCase = new Date(Tools.getLastCaseUpdated());
+    }
+
+    // Function to manages and handles notification logic for AirPods battery alerts
+    function updateNotificationManager() {
+        if (cfg.allowNotification && isWidgetVisible) {
+            if (latestModel != root.model) {
+                if (airpodsNotification) {
+                    airpodsNotification.destroy();
+                    airpodsNotification = null;
+                    sendFirstAirPodsNotification = sendSecondAirPodsNotification = false;
+                }
+                if (leftPodNotification) {
+                    leftPodNotification.destroy();
+                    leftPodNotification = null;
+                    sendFirstLeftPodNotification = sendSecondLeftPodNotification = false;
+                }
+                if (rightPodNotification) {
+                    rightPodNotification.destroy();
+                    rightPodNotification = null;
+                    sendFirstRightPodNotification = sendSecondRightPodNotification = false;
+                }
+                if (caseNotification) {
+                    caseNotification.destroy();
+                    caseNotification = null;
+                    sendFirstCaseNotification = sendSecondCaseNotification = false;
+                }
+            }
+
+            if ((Math.abs(root.leftBat - root.rightBat) > 10)) {
+                if (airpodsNotification) {
+                    airpodsNotification.destroy();
+                    airpodsNotification = null;
+                    sendFirstAirPodsNotification = sendSecondAirPodsNotification = false;
+                }
+                
+                // Left Pod Notifications
+                var podResult = handleNotification(sendSecondLeftPodNotification, cfg.secondPodsBatteryLowSpin, root.leftBat, cfg.secondPodsNotificationSwitch, cfg.secondPodsUrgencySwitch, cfg.secondPodsIconSwitch, leftIconPath, "Left AirPod", leftPodNotification);
+                sendSecondLeftPodNotification = podResult.flag;
+                leftPodNotification = podResult.notification;
+
+                if (!sendSecondLeftPodNotification) {
+                    podResult = handleNotification(sendFirstLeftPodNotification, cfg.firstPodsBatteryLowSpin, root.leftBat, cfg.firstPodsNotificationSwitch, cfg.firstPodsUrgencySwitch, cfg.firstPodsIconSwitch, leftIconPath, "Left AirPod", leftPodNotification);
+                    sendFirstLeftPodNotification = podResult.flag;
+                    leftPodNotification = podResult.notification;
+                }
+                    
+                // Right Pod Notifications
+                var podResult = handleNotification(sendSecondRightPodNotification, cfg.secondPodsBatteryLowSpin, root.rightBat, cfg.secondPodsNotificationSwitch, cfg.secondPodsUrgencySwitch, cfg.secondPodsIconSwitch, rightIconPath, "Right AirPod", rightPodNotification);
+                sendSecondRightPodNotification = podResult.flag;
+                rightPodNotification = podResult.notification;
+
+                if (!sendSecondRightPodNotification) {
+                    podResult = handleNotification(sendFirstRightPodNotification, cfg.firstPodsBatteryLowSpin, root.rightBat, cfg.firstPodsNotificationSwitch, cfg.firstPodsUrgencySwitch, cfg.firstPodsIconSwitch, rightIconPath, "Right AirPod", rightPodNotification);
+                    sendFirstRightPodNotification = podResult.flag;
+                    rightPodNotification = podResult.notification;
+                }
+            } else {
+                if (leftPodNotification) {
+                    leftPodNotification.destroy();
+                    leftPodNotification = null;
+                    sendFirstLeftPodNotification = sendSecondLeftPodNotification = false;
+                }
+                    
+                if (rightPodNotification) {
+                    rightPodNotification.destroy();
+                    rightPodNotification = null;
+                    sendFirstRightPodNotification = sendSecondRightPodNotification = false;
+                }
+
+                // AirPods Notifications
+                var podResult = handleNotification(sendSecondAirPodsNotification, cfg.secondPodsBatteryLowSpin, root.averageBat, cfg.secondPodsNotificationSwitch, cfg.secondPodsUrgencySwitch, cfg.secondPodsIconSwitch, averageIconPath, "AirPods", airpodsNotification);
+                sendSecondAirPodsNotification = podResult.flag;
+                airpodsNotification = podResult.notification;
+
+                if (!sendSecondAirPodsNotification) {
+                    podResult = handleNotification(sendFirstAirPodsNotification, cfg.firstPodsBatteryLowSpin, root.averageBat, cfg.firstPodsNotificationSwitch, cfg.firstPodsUrgencySwitch, cfg.firstPodsIconSwitch, averageIconPath, "AirPods", airpodsNotification);
+                    sendFirstAirPodsNotification = podResult.flag;
+                    airpodsNotification = podResult.notification;
+                }
+            }
+                    
+            // Case Notifications
+            var caseResult = handleNotification(sendSecondCaseNotification, cfg.secondCaseBatteryLowSpin, root.caseBat, cfg.secondCaseNotificationSwitch, cfg.secondCaseUrgencySwitch, cfg.secondCaseIconSwitch, caseIconPath, "AirPods Case", caseNotification);
+            sendSecondCaseNotification = caseResult.flag;
+            caseNotification = caseResult.notification;
+
+            if (!sendSecondCaseNotification) {
+                caseResult = handleNotification(sendFirstCaseNotification, cfg.firstCaseBatteryLowSpin, root.caseBat, cfg.firstCaseNotificationSwitch, cfg.firstCaseUrgencySwitch, cfg.firstCaseIconSwitch, caseIconPath, "AirPods Case", caseNotification);
+                sendFirstCaseNotification = caseResult.flag;
+                caseNotification = caseResult.notification;
+            }
+        }
+    }
 
     // Function to send a battery level notification for AirPods or the case
     function sendBatteryNotification(name, batteryLowSpin, iconSwitch, iconPath, urgencySwitch) {
@@ -88,7 +306,7 @@ PlasmoidItem {
     // Function to update the icons
     function updateIcons() {
         if (cfg.autoWidgetIcons) {
-            switch (Tools.getAirPodsModel()) {
+            switch (root.model) {
                 case "AirPods1":
                 case "AirPods2":
                     iconBasePath = "../images/AirPodsGen1&2Icons";
@@ -122,9 +340,9 @@ PlasmoidItem {
     // Function to update the tooltip information
     function updateToolTip() {
         let text = "";
-        text += "\n \u2022 %1 %2 % %3".arg("Left: ").arg(Tools.getLeftCharge() != -1 ? Tools.getLeftCharge() : "----").arg(Tools.isChargingLeft() ? "recharge" : "")
-        text += "\n \u2022 %1 %2 % %3".arg("Right: ").arg(Tools.getRightCharge() != -1 ? Tools.getRightCharge() : "----").arg(Tools.isChargingRight() ? "recharge" : "")
-        text += "\n \u2022 %1 %2 % %3".arg("Case: ").arg(Tools.getCaseCharge() != -1 ? Tools.getCaseCharge() : "----").arg(Tools.isChargingCase() ? "recharge" : "")
+        text += "\n \u2022 %1 %2 % %3".arg("Left: ").arg(root.leftBat != -1 ? root.leftBat : "----").arg(root.chargingLeft ? "recharge" : "")
+        text += "\n \u2022 %1 %2 % %3".arg("Right: ").arg(root.rightBat != -1 ? root.rightBat : "----").arg(root.chargingRight ? "recharge" : "")
+        text += "\n \u2022 %1 %2 % %3".arg("Case: ").arg(root.caseBat != -1 ? root.caseBat : "----").arg(root.chargingCase ? "recharge" : "")
         return text;
     }
 
@@ -146,23 +364,18 @@ PlasmoidItem {
                 when:  Plasmoid.containment.corona?.editMode?true:false
                 changes: [
                     PropertyChanges {
-                        target: compactRep
-                        visible: {
-                            if (!isWidgetVisible && !setupView.visible) {
-                                compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 3.5;
-                                return true;
-                            }
-                            return false;
-                        }
-                    },
-                    PropertyChanges {
                         target: editModeView
                         visible: {
                             if (!isWidgetVisible && !setupView.visible) {
+                                compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 2.5;
                                 displayingView.visible = false;
                                 return true;
+                            } if(setupView.visible) {
+                                return false;
+                            } else {
+                                displayingView.visible = true;
+                                return false;
                             }
-                            return false;
                         }
                     }
                 ]
@@ -170,7 +383,7 @@ PlasmoidItem {
         ]
 
         // Minimum size for the compact view
-        Layout.minimumWidth: Kirigami.Units.iconSizes.large * 5.5
+        Layout.minimumWidth: !isWidgetInit ? Kirigami.Units.iconSizes.large * 2 : Kirigami.Units.iconSizes.large * 5.5
         Layout.minimumHeight: Kirigami.Units.iconSizes.large
 
         // Toggle expanded/collapsed view when clicked
@@ -180,6 +393,57 @@ PlasmoidItem {
         function updateChargeTextCompRep(textElement, chargeRaw) {
             updateChargeText(textElement, chargeRaw);
             textElement.color = chargeRaw != -1 && chargeRaw < 20 && cfg.diffColorCompRepCheck ? cfg.diffColorCompRep : cfg.colorCompRep;
+        }
+
+        // Function to update the compact representation 
+        function updateCompactRepresentation() {
+            if(!editModeView.visible){
+                updateChargeTextCompRep(averageCharge, root.averageBat);
+                updateChargeTextCompRep(leftCharge, root.leftBat);
+                updateChargeTextCompRep(rightCharge, root.rightBat);
+
+                const averageViewValue = cfg.autoView ? (Math.abs(root.leftBat - root.rightBat) <= 10) : cfg.averageView;
+                averageView.visible = averageViewValue;
+                detailedView.visible = !averageViewValue;
+
+                if ((cfg.showCaseBattery && root.caseBat != -1 && latestModel == root.model) || (cfg.autoHiddenCaseBattery && !isLastUpdateOlderThanThreshold(root.lastUpdateCase, cfg.customTimeThreshold2))) {
+                    if (averageViewValue) {
+                        updateChargeTextCompRep(caseCharge, root.caseBat);
+                        caseChargeLayout.visible = true;
+                        caseChargeLayout.width = 65;
+                        compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 4;
+                    } else {
+                        updateChargeTextCompRep(caseCharge1, root.caseBat);
+                        caseChargeLayout1.visible = true;
+                        caseChargeLayout1.width = 70;
+                        compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 5.5;
+                    }
+                } else {
+                    caseChargeLayout.visible = averageViewValue ? false : caseChargeLayout1.visible = false;
+                    caseChargeLayout.width = 0;
+                    compactRep.Layout.minimumWidth = averageViewValue ? Kirigami.Units.iconSizes.large * 2 : Kirigami.Units.iconSizes.large * 3.5;
+                }
+
+                toolTipSubText = updateToolTip();
+
+                displayingView.visible = isWidgetVisible = !((!btManager.bluetoothOperational && cfg.hiddenWidgetBt) || (isLastUpdateOlderThanThreshold(root.lastUpdate, cfg.customTimeThreshold) && cfg.hiddenWidgetLastUpdate));
+
+                if (!displayingView.visible) {
+                    compactRep.Layout.minimumWidth = 4;
+                }
+
+                if (setupView.visible) {
+                    compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 2;
+                    displayingView.visible = false;
+                }
+            }
+        }
+
+        Connections {
+            target: root
+            function onUpdateCompact() {
+                compactRep.updateCompactRepresentation();
+            }
         }
 
         // Layout for edit mode view
@@ -193,7 +457,7 @@ PlasmoidItem {
                     Kirigami.Icon {
                         source: Qt.resolvedUrl(averageIconPath)
                         height: cfg.iconSizeAverage
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
                 }
                 Text {
@@ -202,14 +466,14 @@ PlasmoidItem {
                     font.pixelSize: 14
                     font.bold: true
                     color: "white"
-                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.alignment: Qt.AlignVCenter
                 }
             }
         }
 
         ColumnLayout {
             id: setupView
-            visible: !(Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))
+            visible: !isWidgetInit
             anchors.centerIn: parent
             RowLayout {
                 spacing: 5
@@ -217,16 +481,16 @@ PlasmoidItem {
                     Kirigami.Icon {
                         source: Qt.resolvedUrl(averageIconPath)
                         height: cfg.iconSizeAverage
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
                 }
                 Text {
-                    text: "Setup"
+                    text: !infoPage ? isError ? "Error" : "Setup" : !Tools.isEnvSet() ? "Setup" : "New"
                     visible: true
                     font.pixelSize: 14
                     font.bold: true
                     color: "white"
-                    anchors.verticalCenter: parent.verticalCenter
+                    Layout.alignment: Qt.AlignVCenter
                 }
             }
         }
@@ -234,13 +498,13 @@ PlasmoidItem {
         // Layout for displaying battery charge info
         ColumnLayout {
             id: displayingView
-            visible: (Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))
+            visible: isWidgetInit
             anchors.centerIn: parent
         
             // Row for average charge and case charge in the compact view
             RowLayout {
                 id: averageView
-                visible: cfg.averageView || (cfg.autoView && (Math.abs(Tools.getLeftCharge() - Tools.getRightCharge()) <= 10))
+                visible: cfg.averageView || (cfg.autoView && (Math.abs(root.leftBat - root.rightBat) <= 10))
                 spacing: 5
 
                 // AirPods charge display
@@ -250,7 +514,7 @@ PlasmoidItem {
                         Kirigami.Icon {
                             source: Qt.resolvedUrl(averageIconPath)
                             height: cfg.iconSizeAverage
-                            anchors.verticalCenter: parent.verticalCenter
+                            Layout.alignment: Qt.AlignVCenter
                         }
                     }
                     Text {
@@ -261,7 +525,7 @@ PlasmoidItem {
                         font.bold: cfg.boldCompRep
                         font.italic: cfg.italicCompRep
                         color: cfg.colorCompRep
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
                 }
 
@@ -270,12 +534,11 @@ PlasmoidItem {
                     id: caseChargeLayout
                     visible: cfg.showCaseBattery || cfg.autoHiddenCaseBattery
                     height: parent.height
-                    width: childrenRect.width
                     spacing: 5
                     Kirigami.Icon {
                         source: Qt.resolvedUrl(caseIconPath)
                         height: cfg.iconSizeCase
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
                     Text {
                         id: caseCharge
@@ -285,7 +548,7 @@ PlasmoidItem {
                         font.bold: cfg.boldCompRep
                         font.italic: cfg.italicCompRep
                         color: cfg.colorCompRep
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
                 }
             }
@@ -293,7 +556,7 @@ PlasmoidItem {
             // Row for detailed charge view (left and right AirPods)
             RowLayout {
                 id: detailedView
-                visible: cfg.detailedView || (cfg.autoView && (Math.abs(Tools.getLeftCharge() - Tools.getRightCharge()) > 10))
+                visible: cfg.detailedView || (cfg.autoView && (Math.abs(root.leftBat - root.rightBat) > 10))
                 spacing: 10
 
                 RowLayout {
@@ -303,7 +566,7 @@ PlasmoidItem {
                         Kirigami.Icon {
                             source: Qt.resolvedUrl(leftIconPath)
                             height: cfg.iconSizeLeftRight
-                            anchors.verticalCenter: parent.verticalCenter
+                            Layout.alignment: Qt.AlignVCenter
                         }
                     }
                     Text {
@@ -314,7 +577,7 @@ PlasmoidItem {
                         font.bold: cfg.boldCompRep
                         font.italic: cfg.italicCompRep
                         color: cfg.colorCompRep
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
 
                     // Right AirPod
@@ -322,7 +585,7 @@ PlasmoidItem {
                         Kirigami.Icon {
                             source: Qt.resolvedUrl(rightIconPath)
                             height: cfg.iconSizeLeftRight
-                            anchors.verticalCenter: parent.verticalCenter
+                            Layout.alignment: Qt.AlignVCenter
                         }
                     }
                     Text {
@@ -333,7 +596,7 @@ PlasmoidItem {
                         font.bold: cfg.boldCompRep
                         font.italic: cfg.italicCompRep
                         color: cfg.colorCompRep
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
                 }
 
@@ -342,13 +605,12 @@ PlasmoidItem {
                     id: caseChargeLayout1
                     visible: cfg.showCaseBattery || cfg.autoHiddenCaseBattery
                     height: parent.height
-                    width: childrenRect.width
                     spacing: 5
 
                     Kirigami.Icon {
                         source: Qt.resolvedUrl(caseIconPath)
                         height: cfg.iconSizeCase
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
                     Text {
                         id: caseCharge1
@@ -358,62 +620,8 @@ PlasmoidItem {
                         font.bold: cfg.boldCompRep
                         font.italic: cfg.italicCompRep
                         color: cfg.colorCompRep
-                        anchors.verticalCenter: parent.verticalCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
-                }
-            }
-        }
-
-        // Timer to regularly update the battery status
-        Timer {
-            interval: 600
-            running: !editModeView.visible
-            repeat: !editModeView.visible
-
-            // Triggered function to update the charge values in compact representation
-            onTriggered: {
-                updateChargeTextCompRep(averageCharge, Tools.getAverageCharge());
-                updateChargeTextCompRep(leftCharge, Tools.getLeftCharge());
-                updateChargeTextCompRep(rightCharge, Tools.getRightCharge());
-
-                const averageViewValue = cfg.autoView ? (Math.abs(Tools.getLeftCharge() - Tools.getRightCharge()) <= 10) : cfg.averageView;
-                averageView.visible = averageViewValue;
-                detailedView.visible = !averageViewValue;
-
-                if ((cfg.showCaseBattery && Tools.getCaseCharge() != -1) || (cfg.autoHiddenCaseBattery && !isLastUpdateOlderThanThreshold(Tools.getLastCaseUpdatedDate(), cfg.customTimeThreshold2))) {
-                    let caseChargeValue = Tools.getCaseCharge();
-                    if (averageViewValue) {
-                        updateChargeTextCompRep(caseCharge, caseChargeValue);
-                        caseChargeLayout.visible = true;
-                        caseChargeLayout.width = 65;
-                        compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 4;
-                    } else {
-                        updateChargeTextCompRep(caseCharge1, caseChargeValue);
-                        caseChargeLayout1.visible = true;
-                        caseChargeLayout1.width = 70;
-                        compactRep.Layout.minimumWidth = Kirigami.Units.iconSizes.large * 5.5;
-                    }
-                } else {
-                    caseChargeLayout.visible = averageViewValue ? false : caseChargeLayout1.visible = false;
-                    caseChargeLayout.width = 0;
-                    compactRep.Layout.minimumWidth = averageViewValue ? Kirigami.Units.iconSizes.large * 2 : Kirigami.Units.iconSizes.large * 3.5;
-                }
-
-                toolTipSubText = updateToolTip();
-                updateIcons();
-
-                compactRep.visible = isWidgetVisible = !((!btManager.bluetoothOperational && cfg.hiddenWidgetBt) || (isLastUpdateOlderThanThreshold(Tools.getLastUpdatedDate(), cfg.customTimeThreshold) && cfg.hiddenWidgetLastUpdate));
-
-                if (!compactRep.visible) {
-                    compactRep.Layout.minimumWidth = 4;
-                }
-
-                if (!(Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))) {
-                    setupView.visible = true;
-                    displayingView.visible = false;
-                } else {
-                    setupView.visible = false;
-                    displayingView.visible = true;
                 }
             }
         }
@@ -480,17 +688,83 @@ PlasmoidItem {
             canvas.requestPaint();
         }
 
+        // Function to update the full representation 
+        function updateFullRepresentation(){
+            // Update model title text
+            modelTitle.text = cfg.titleCheckText ? cfg.titleText : root.model;
+
+            // Update AirPod left charge
+            var leftChargeRaw = root.leftBat;
+            var isLeftCharging = root.chargingLeft;
+            updateChargeTextCompFull(leftChargeText, leftChargeRaw);
+            renderAirpodCircle(circleCanvas1, leftChargeRaw, leftIconPath, isLeftCharging, cfg.iconWidthLeftRightFullRep, cfg.iconHeightLeftRightFullRep);
+
+            // Update AirPod right charge
+            var rightChargeRaw = root.rightBat;
+            var isRightCharging = root.chargingRight;
+            updateChargeTextCompFull(rightChargeText, rightChargeRaw);
+            renderAirpodCircle(circleCanvas2, rightChargeRaw, rightIconPath, isRightCharging, cfg.iconWidthLeftRightFullRep, cfg.iconHeightLeftRightFullRep);
+
+            // Update AirPods case charge (only if enabled in settings)
+            var caseChargeRaw = root.caseBat;
+            var isCaseCharging = root.chargingCase;
+            if (cfg.showAlwaysCaseBatteryFullRep) {
+                caseView.visible = true;
+                fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 20
+                updateChargeTextCompFull(caseChargeText, caseChargeRaw);
+                renderAirpodCircle(circleCanvas3, caseChargeRaw, caseIconPath, isCaseCharging, cfg.iconWidthCaseFullRep, cfg.iconHeightCaseFullRep);
+            } else if (cfg.showAvailableCaseBatteryFullRep || (cfg.autoHiddenCaseBatteryFullRep && !isLastUpdateOlderThanThreshold(root.lastUpdateCase, cfg.customTimeThreshold3))) {
+                if (caseChargeRaw != -1 && latestModel == root.model) {
+                    caseView.visible = true;
+                    fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 20
+                    updateChargeTextCompFull(caseChargeText, caseChargeRaw);
+                    renderAirpodCircle(circleCanvas3, caseChargeRaw, caseIconPath, isCaseCharging, cfg.iconWidthCaseFullRep, cfg.iconHeightCaseFullRepp);
+                } else {
+                    caseView.visible = false;
+                    fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 14
+                }
+            } else {
+                caseView.visible = false;
+                fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 14
+            }
+
+            if (cfg.circleSize > 84) {
+                fullRep.Layout.maximumWidth = Kirigami.Units.gridUnit * 200
+                fullRep.Layout.maximumHeight = Kirigami.Units.gridUnit * 100
+            }
+
+            // Update last update text
+            lastUpdated.text = "Last updated: " + (root.status == 1 ? Qt.locale().toString(root.lastUpdate, cfg.customDateFormat) : "")
+
+            toolTipSubText = updateToolTip();
+        }
+
+        Connections {
+            target: root
+            function onUpdateFull() {
+                fullRep.updateFullRepresentation();
+            }
+        }
+
         ColumnLayout {
             id: setupView
-            visible: !(Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))
+            visible: !isWidgetInit
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 text: {
-                    if (!Tools.isEnvSet()) {
-                        return "Please open the Widget setting <br> and follow setup instruction."
+                    if (infoPage && Tools.isEnvSet()) {
+                        return "New backend option available. <br> Please open the Widget settings.";
+                    } else if (!infoPage) {
+                        if (!Tools.isEnvSet()) { 
+                            return "Please open the Widget settings <br> and follow setup instruction.";
+                        } else {
+                            return "Please open the Widget settings <br> and follow setup instruction.<br><br> Step 1 of 2 done."
+                        }
+                    } else if (isError) {
+                        return "The backend has an error. <br><br> Please open the Widget settings <br> and follow instructions."
                     } else {
-                        return "Please open the Widget setting <br> and follow setup instruction.<br><br> Step 1 of 2 done."
+                        return "Please open the Widget settings <br> and follow setup instruction.";
                     }
                 }
                 font.pixelSize: 15
@@ -501,7 +775,7 @@ PlasmoidItem {
 
         Column {
             id: displayingView
-            visible: (Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))
+            visible: isWidgetInit
             spacing: 10
             anchors.centerIn: parent
 
@@ -510,7 +784,7 @@ PlasmoidItem {
                 visible: cfg.titleCheck
                 Text {
                     id: modelTitle
-                    text: cfg.titleCheckText ? cfg.titleText : Tools.getAirPodsModel()
+                    text: cfg.titleCheckText ? cfg.titleText : root.model
                     verticalAlignment: Text.AlignVCenter
                     font.pixelSize: cfg.fontSizeFullRepTitle
                     font.bold: cfg.boldFullRepTitle
@@ -593,7 +867,7 @@ PlasmoidItem {
                 visible: cfg.lastUpdateTextCheck
                 Text {
                     id: lastUpdated
-                    text: "Last updated: " + Qt.locale().toString(Tools.getLastUpdatedDate(), cfg.customDateFormat)
+                    text: "Last updated: " + (root.status == 1 ? Qt.locale().toString(root.lastUpdate, cfg.customDateFormat) : "")
                     verticalAlignment: Text.AlignVCenter
                     font.pixelSize: cfg.fontSizeFullRepLU
                     font.bold: cfg.boldFullRepLU
@@ -602,147 +876,23 @@ PlasmoidItem {
                 }
             }
         }
-
-        // Timer to update the widget every 60 seconds
-        Timer {
-            interval: 600 
-            running: true
-            repeat: true
-            onTriggered: {
-                // Update model title text
-                modelTitle.text = cfg.titleCheckText ? cfg.titleText : Tools.getAirPodsModel();
-
-                // Update AirPod left charge
-                var leftChargeRaw = Tools.getLeftCharge();
-                var isLeftCharging = Tools.isChargingLeft();
-                updateChargeTextCompFull(leftChargeText, leftChargeRaw);
-                renderAirpodCircle(circleCanvas1, leftChargeRaw, leftIconPath, isLeftCharging, cfg.iconWidthLeftRightFullRep, cfg.iconHeightLeftRightFullRep);
-
-                // Update AirPod right charge
-                var rightChargeRaw = Tools.getRightCharge();
-                var isRightCharging = Tools.isChargingRight();
-                updateChargeTextCompFull(rightChargeText, rightChargeRaw);
-                renderAirpodCircle(circleCanvas2, rightChargeRaw, rightIconPath, isRightCharging, cfg.iconWidthLeftRightFullRep, cfg.iconHeightLeftRightFullRep);
-
-                // Update AirPods case charge (only if enabled in settings)
-                var caseChargeRaw = Tools.getCaseCharge();
-                var isCaseCharging = Tools.isChargingCase();
-                if (cfg.showAlwaysCaseBatteryFullRep) {
-                    caseView.visible = true;
-                    fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 20
-                    updateChargeTextCompFull(caseChargeText, caseChargeRaw);
-                    renderAirpodCircle(circleCanvas3, caseChargeRaw, caseIconPath, isCaseCharging, cfg.iconWidthCaseFullRep, cfg.iconHeightCaseFullRep);
-                } else if (cfg.showAvailableCaseBatteryFullRep || (cfg.autoHiddenCaseBatteryFullRep && !isLastUpdateOlderThanThreshold(Tools.getLastUpdatedDate(), cfg.customTimeThreshold3))) {
-                    if (caseChargeRaw != -1) {
-                        caseView.visible = true;
-                        fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 20
-                        updateChargeTextCompFull(caseChargeText, caseChargeRaw);
-                        renderAirpodCircle(circleCanvas3, caseChargeRaw, caseIconPath, isCaseCharging, cfg.iconWidthCaseFullRep, cfg.iconHeightCaseFullRepp);
-                    } else {
-                        caseView.visible = false;
-                        fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 14
-                    }
-                } else {
-                    caseView.visible = false;
-                    fullRep.Layout.minimumWidth = Kirigami.Units.gridUnit * 14
-                }
-
-                if (cfg.circleSize > 84) {
-                    fullRep.Layout.maximumWidth = Kirigami.Units.gridUnit * 200
-                    fullRep.Layout.maximumHeight = Kirigami.Units.gridUnit * 100
-                }
-
-                // Update last update text
-                lastUpdated.text = "Last updated: " + Qt.locale().toString(Tools.getLastUpdatedDate(), cfg.customDateFormat);
-
-                toolTipSubText = updateToolTip();
-                updateIcons();
-
-                if (!(Tools.isEnvSet() && ((cfg.widgetScript && Tools.isAutoStartSet()) || (cfg.otherScript && Tools.fileExists(cfg.outPutFile))))) {
-                    setupView.visible = true;
-                    displayingView.visible = false;
-                } else {
-                    setupView.visible = false;
-                    displayingView.visible = true;
-                }
-            }
-        }
     }
 
     // Timer to periodically check and update battery status and send notification
     Timer {
-        interval: 6000
+        interval: 1000
         running: true
         repeat: true
         onTriggered: {
-            if (Tools.isEnvSet() && (Tools.isAutoStartSet() || Tools.fileExists(cfg.outPutFile))) {
-                Tools.updateBatteryStatus(cfg.otherScript ? cfg.outPutFile : cfg.widgetScript ? "../../airstatus.out" : "", cfg.optimizerOptions ? cfg.refRawValue : "-1");    
-                
-                if (cfg.allowNotification && isWidgetVisible) {
-                    if ((Math.abs(Tools.getLeftCharge() - Tools.getRightCharge()) > 10)) {
-                        if (airpodsNotification) {
-                            airpodsNotification.destroy();
-                            airpodsNotification = None;
-                            sendFirstAirPodsNotification = sendSecondAirPodsNotification = false;
-                        }
-                        
-                        // Left Pod Notifications
-                        var podResult = handleNotification(sendSecondLeftPodNotification, cfg.secondPodsBatteryLowSpin, Tools.getLeftCharge(), cfg.secondPodsNotificationSwitch, cfg.secondPodsUrgencySwitch, cfg.secondPodsIconSwitch, leftIconPath, "Left AirPod", leftPodNotification);
-                        sendSecondLeftPodNotification = podResult.flag;
-                        leftPodNotification = podResult.notification;
-
-                        if (!sendSecondLeftPodNotification) {
-                            podResult = handleNotification(sendFirstLeftPodNotification, cfg.firstPodsBatteryLowSpin, Tools.getLeftCharge(), cfg.firstPodsNotificationSwitch, cfg.firstPodsUrgencySwitch, cfg.firstPodsIconSwitch, leftIconPath, "Left AirPod", leftPodNotification);
-                            sendFirstLeftPodNotification = podResult.flag;
-                            leftPodNotification = podResult.notification;
-                        }
-
-                        // Right Pod Notifications
-                        var podResult = handleNotification(sendSecondRightPodNotification, cfg.secondPodsBatteryLowSpin, Tools.getRightCharge(), cfg.secondPodsNotificationSwitch, cfg.secondPodsUrgencySwitch, cfg.secondPodsIconSwitch, rightIconPath, "Right AirPod", rightPodNotification);
-                        sendSecondRightPodNotification = podResult.flag;
-                        rightPodNotification = podResult.notification;
-
-                        if (!sendSecondRightPodNotification) {
-                            podResult = handleNotification(sendFirstRightPodNotification, cfg.firstPodsBatteryLowSpin, Tools.getRightCharge(), cfg.firstPodsNotificationSwitch, cfg.firstPodsUrgencySwitch, cfg.firstPodsIconSwitch, rightIconPath, "Right AirPod", rightPodNotification);
-                            sendFirstRightPodNotification = podResult.flag;
-                            rightPodNotification = podResult.notification;
-                        }
-                    } else {
-                        if (leftPodNotification) {
-                            leftPodNotification.destroy();
-                            leftPodNotification = None;
-                            sendFirstLeftPodNotification = sendSecondLeftPodNotification = false;
-                        }
-
-                        if (rightPodNotification) {
-                            rightPodNotification.destroy();
-                            rightPodNotification = None;
-                            sendFirstRightPodNotification = sendSecondRightPodNotification = false;
-                        }
-
-                        // AirPods Notifications
-                        var podResult = handleNotification(sendSecondAirPodsNotification, cfg.secondPodsBatteryLowSpin, Tools.getAverageCharge(), cfg.secondPodsNotificationSwitch, cfg.secondPodsUrgencySwitch, cfg.secondPodsIconSwitch, averageIconPath, "AirPods", airpodsNotification);
-                        sendSecondAirPodsNotification = podResult.flag;
-                        airpodsNotification = podResult.notification;
-
-                        if (!sendSecondAirPodsNotification) {
-                            podResult = handleNotification(sendFirstAirPodsNotification, cfg.firstPodsBatteryLowSpin, Tools.getAverageCharge(), cfg.firstPodsNotificationSwitch, cfg.firstPodsUrgencySwitch, cfg.firstPodsIconSwitch, averageIconPath, "AirPods", airpodsNotification);
-                            sendFirstAirPodsNotification = podResult.flag;
-                            airpodsNotification = podResult.notification;
-                        }
-                    }
-                    
-                    // Case Notifications
-                    var caseResult = handleNotification(sendSecondCaseNotification, cfg.secondCaseBatteryLowSpin, Tools.getCaseCharge(), cfg.secondCaseNotificationSwitch, cfg.secondCaseUrgencySwitch, cfg.secondCaseIconSwitch, caseIconPath, "AirPods Case", caseNotification);
-                    sendSecondCaseNotification = caseResult.flag;
-                    caseNotification = caseResult.notification;
-
-                    if (!sendSecondCaseNotification) {
-                        caseResult = handleNotification(sendFirstCaseNotification, cfg.firstCaseBatteryLowSpin, Tools.getCaseCharge(), cfg.firstCaseNotificationSwitch, cfg.firstCaseUrgencySwitch, cfg.firstCaseIconSwitch, caseIconPath, "AirPods Case", caseNotification);
-                        sendFirstCaseNotification = caseResult.flag;
-                        caseNotification = caseResult.notification;
-                    }
-                }
+            if (finishBackendSetup) {
+                runBackend();
+            } else if (!infoPage && !finishBackendSetup) {
+                runOldBackend();
+            } else {
+                isWidgetInit = false;
+                isError = false;
+                waitLongerForVenv = true;
+                updateWidget();
             }
         }
     }
@@ -751,7 +901,7 @@ PlasmoidItem {
     Component {
         id: notificationComponent
         Notification {
-            componentName: Tools.existsNotifyrc() ? "airPodsBatteryWidget" : "plasma_workspace"
+            componentName: "airPodsBatteryWidget"
             eventId: "notification"
             autoDelete: true
         }
@@ -759,9 +909,30 @@ PlasmoidItem {
 
     // Initial battery status update when the widget is loaded
     Component.onCompleted: {
-        if (Tools.isEnvSet() && (Tools.isAutoStartSet() || Tools.fileExists(cfg.outPutFile))) {
-            Tools.updateBatteryStatus(cfg.otherScript ? cfg.outPutFile : cfg.widgetScript ? "../../airstatus.out" : "", cfg.optimizerOptions ? cfg.refRawValue : "-1");
+        updateWidget();
+        if (Tools.isEnvSet()) {
+            plasmoid.configuration.finishBackendSetup = finishBackendSetup = false;
         }
-        updateIcons();
+
+        if (finishBackendSetup) {
+            runBackend();
+        } else if (!infoPage && !finishBackendSetup) {
+            runOldBackend();
+        } else {
+            isWidgetInit = false;
+            isError = false;
+        }
+        plasmoid.configuration.isError = isError;
+        plasmoid.configuration.status = root.status;
+        plasmoid.configuration.jsonData = JSON.stringify({'status': 0});
+        var refData = JSON.parse(plasmoid.configuration.refData);
+        refData.left.value = "---";
+        refData.right.value = "---";
+        refData.case.value = "---";
+        refData.charging_left = false;
+        refData.charging_right = false;
+        refData.charging_case = false;
+        refData.date.value = "";
+        plasmoid.configuration.refData = JSON.stringify(refData);
     }
 }

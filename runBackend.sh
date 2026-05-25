@@ -4,7 +4,7 @@ WIDGET_DIR="$HOME/.local/share/plasma/plasmoids/airpods.battery.widget.frontend"
         
 cd "$WIDGET_DIR"
         
-REQUIREMENTS_FILE="requirements.txt"
+REQUIREMENTS_FILE="requirements2.txt"
 VENV_DIR="venv"
 
 needs_rebuild() {
@@ -13,7 +13,7 @@ needs_rebuild() {
         return 0
     fi
 
-    # Check each package in requirements.txt
+    # Check each package in requirements2.txt
     while IFS= read -r line || [ -n "$line" ]; do
         # Skip empty lines and comments
         [[ -z "$line" || "$line" == \#* ]] && continue
@@ -63,9 +63,6 @@ for file in "${old_files[@]}"; do
         echo "$(date): Removed old file: $file"
         fi
         done
-        
+                    
 # Running the main script with logging
-while true; do
-    ./venv/bin/python3 ./main.py ./airstatus.out
-    sleep 30
-done
+./venv/bin/python3 ./airpods_dbus_bridge.py
