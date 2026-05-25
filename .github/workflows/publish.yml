@@ -1,0 +1,99 @@
+name: Publish Release
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: write
+
+env:
+  DESTDIR: artifacts 
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-tags: true 
+
+      - name: Install validation tools
+        run: |
+          sudo apt-get update 
+          sudo apt-get install -y --no-install-recommends \
+            jq \
+            findutils \
+            tar
+
+      - name: Validate plasmoid structure
+        run: |
+          test -f metadata.json
+          test -f contents/ui/main.qml
+          jq . metadata.json
+          find . -name "*.qml" -type f
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(jq -r '.KPlugin.Version' metadata.json)
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Package plasmoid
+        run: |
+          STAGING=$(mktemp -d)
+          cp -r . "$STAGING/airpods.battery.widget.frontend"
+          tar -czf airpods.battery.widget.frontend.tar.gz -C "$STAGING" airpods.battery.widget.frontend
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plasmoid
+          path: ./artifacts/airpods.battery.widget.frontend.tar.gz
+
+      - name: Check if tag exists
+        id: tag_check
+        if: github.event_name == 'push'
+        run: |
+          if git ls-remote --tags origin | grep -q "refs/tags/${{ steps.version.outputs.tag }}$"; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Git tag (main only)
+        if: github.event_name == 'push' && github.ref_name == 'main' && steps.tag_check.outputs.exists == 'false'
+        run: |
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && github.ref_name == 'main' && steps.tag_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          prerelease: false
+          make_latest: true
+          files: |
+            airpods.battery.widget.frontend.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pre-Release (develop)
+        if: github.event_name == 'push' && github.ref_name == 'develop'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: develop 
+          name: Pre-Release ${{ steps.version.outputs.tag }}
+          prerelease: true
+          make_latest: false
+          files: |
+            airpods.battery.widget.frontend.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
