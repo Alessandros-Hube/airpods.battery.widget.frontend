@@ -48,7 +48,7 @@ jobs:
       - name: Package plasmoid
         run: |
           STAGING=$(mktemp -d)
-          cp -r --exclude='.git' . "$STAGING/airpods.battery.widget.frontend"
+          rsync -a --exclude='.git' . "$STAGING/airpods.battery.widget.frontend/"
           tar -czf airpods.battery.widget.frontend.tar.gz -C "$STAGING" airpods.battery.widget.frontend
 
       - uses: actions/upload-artifact@v4
